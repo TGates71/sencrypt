@@ -167,38 +167,32 @@ class module_controller extends ctrl_module
 			self::$error = true;
 			return false;
 			}
-	// replace with let's encrypt create SSL routine
-	// GET user info
-		
-		 $dn = array(
-								"countryName" => "$country",
-								"stateOrProvinceName" => "$name",
-								"localityName" => "$city",
-								"organizationName" => "$company",
-								"commonName" => "$domain",
-								"emailAddress" => "$address",
-								"subjectAltName" => "DNS: $domain, DNS: www.$domain"
-							); 		
-		// Make Key
-		
-		//$config = array('private_key_bits' => 4096);
-		
-		$privkey = openssl_pkey_new();
-		
-		// Generate a certificate signing request
-		$csr = openssl_csr_new($dn, $privkey);
-		
-		$config = array("digest_alg" => "sha256", "x509_extensions" => "v3_req");
-		
-		$sscert = openssl_csr_sign($csr, null, $privkey, 365, $config);
-		
-		//openssl_csr_export($csr, $csrout);
-		//openssl_x509_export($sscert, $certout);
-		//openssl_pkey_export($privkey, $pkeyout, $password);
-		
-		openssl_x509_export_to_file($sscert, ctrl_options::GetSystemOption('hosted_dir').$currentuser["username"] ."/ssl/".$rootdir ."/".$domain .".crt");
-		openssl_pkey_export_to_file($privkey, ctrl_options::GetSystemOption('hosted_dir').$currentuser["username"] ."/ssl/".$rootdir ."/".$domain .".key");
 			
+	// use let's encrypt create SSL command:
+	// COMMAND LINE: ./certbot-auto certonly --standalone -d domain.com
+	
+	// Need to stop apache, create cert, restart apache
+	
+	        $command = ctrl_options::GetSystemOption('zsudo');
+			  // stop apache
+            $args = array(
+                "service",
+                ctrl_options::GetSystemOption('apache_sn'),
+                "stop"
+            );
+            $returnValue = ctrl_system::systemCommand($command, $args);
+			  // create cert ??
+            $returnValue = ctrl_system::systemCommand(
+				  "./certbot-auto certonly --standalone -d ".$domain
+			  );
+			  // start apache
+            $args = array(
+                "service",
+                ctrl_options::GetSystemOption('apache_sn'),
+                "start"
+            );
+	
+
            if($domain == ctrl_options::GetSystemOption('sentora_domain')) {
 				
 				$line = "# Made from sencrypt start".fs_filehandler::NewLine();
