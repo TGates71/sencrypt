@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<updateserver>
+	<latestversion>001</latestversion>
+	<downloadurl>http://zppy-repo.mach-hosting.com/testing/sencrypt.zpp</downloadurl>
+	<desc>Add or remove Let's Encrypt SSL certificates for your domains/sub domains</desc>
+	<updatedesc>Still in development</updatedesc>
+	<authorname>T.Gates, Diablo925</authorname>
+	<authoremail>tgates@sentora.org</authoremail>
+	<authorurl>http://www.sentora.org</authorurl>
+	<ostype>all</ostype>
+</updateserver>

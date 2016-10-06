@@ -1,0 +1,25 @@
+<?php
+/**
+ * Uninstall for Sencypt Module for sentora 1.0.3
+ * Version : 001
+ */
+ 
+require_once('cnf/db.php');
+require_once('dryden/db/driver.class.php');
+require_once('dryden/debug/logger.class.php');
+require_once('dryden/runtime/dataobject.class.php');
+require_once('dryden/sys/versions.class.php');
+require_once('dryden/ctrl/options.class.php');
+require_once('dryden/ctrl/auth.class.php');
+require_once('dryden/ctrl/users.class.php');
+require_once('dryden/fs/director.class.php');
+require_once('inc/dbc.inc.php');
+
+
+//Remove
+removeModule();
+
+function removeModule(){
+
+ }
+?>

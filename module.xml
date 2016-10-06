@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<module>
+    <name>Sencrypt</name>
+    <version>001</version>
+    <defaultcat>Domain Management</defaultcat>
+    <desc>Add or remove Let's Encrypt SSL certificates for your domains/sub domains</desc>
+    <authorname>TGates</authorname>
+    <authoremail>tgates@sentora.org</authoremail>
+    <authorurl>http://www.sentora.org/</authorurl>
+    <updateurl>http://zppy-repo.mach-hosting.com/testing/sencrypt.zpp</updateurl>
+</module>
