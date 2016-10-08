@@ -10,209 +10,72 @@
 		
     </div>
 	
-	<@ Result @>
+<@ Result @>
 	
 	<div class="zgrid_wrapper">
-	<form action="./?module=sencrypt&action=select" method="post">
-	<button class="btn btn-primary" type="button" data-toggle="modal" data-target=".bs-example-modal-lg"><: My certificate :></button>
- 	<button class="button-loader btn btn-primary" type="submit" id="button" name="inSSLbought" id="inSSLbought" value="inSSLbought"><: Install Free Certificate :></button> 
- 	<@ CSFR_Tag @> 
- 	</form>
+        <form action="./?module=sencrypt&action=select" method="post">
+            <button class="btn btn-primary" type="button" data-toggle="modal" data-target=".bs-example-modal-lg"><: My Certificates :></button>
+            <button class="button-loader btn btn-primary" type="submit" id="button" name="inSSLcreate" id="inSSLcreate" value="inSSLcreate"><: Create Free SSL Certificate :></button> 
+            <@ CSFR_Tag @> 
+        </form>
 	</div>
 	
 	
 	<div class="modal fade bs-example-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel">
 		<div class="modal-dialog modal-lg">
 			<div class="modal-content">
-			<div class="modal-header">
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-				<h4 class="modal-title" id="myModalLabel"><: My certificate :></h4>
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="myModalLabel"><: My certificate :></h4>
+                </div>
+                <table class="table">
+                    <% loop SSLList %>
+                        <tr>
+                        <td><& name &></td>
+                        <form action="./?module=sencrypt&action=Download" method="post">
+                            <td><input type="hidden" name="inName" value="<& name &>">
+                            <button class="btn btn-primary" type="submit" id="button" name="inDownload_<& name &>" id="inDownload_<& name &>" value="inDownload_<& name &>"><: Download :></button></td>
+                        </form>
+                        <form action="./?module=sencrypt&action=Delete" method="post">
+                            <td><input type="hidden" name="inName" value="<& name &>">
+                            <button class="button-loader delete btn btn-danger" type="submit" id="button" name="inDelete_<& name &>" id="inDelete_<& name &>" value="inDelete_<& name &>"><: Delete :></button></td>
+                            <@ CSFR_Tag @>	
+                        </form>
+                        </tr>
+                    <% endloop %>	
+                </table>
 			</div>
-					<table class="table">
-						<% loop SSLList %>
-							<tr>
-							<td><& name &></td>
-							<form action="./?module=sencrypt&action=Download" method="post">
-								<td><input type="hidden" name="inName" value="<& name &>">
-								<button class="btn btn-primary" type="submit" id="button" name="inDownload_<& name &>" id="inDownload_<& name &>" value="inDownload_<& name &>"><: Download :></button></td>
-							</form>
-							<form action="./?module=sencrypt&action=Delete" method="post">
-								<td><input type="hidden" name="inName" value="<& name &>">
-								<button class="button-loader delete btn btn-danger" type="submit" id="button" name="inDelete_<& name &>" id="inDelete_<& name &>" value="inDelete_<& name &>"><: Delete :></button></td>
-									<@ CSFR_Tag @>	
-							</form>
-							</tr>
-						<% endloop %>	
-		</table>
-	</div>
-  </div>
-</div>
-
-
-<% if isShowCSR %>
-    <div class="zgrid_wrapper">
-        <h2><: Certificate Signing Request :></h2>
-        <form action="./?module=sencrypt&action=MakeCSR" method="post">
-            <table class="table table-striped">
-                            <tr>
-                                <th nowrap="nowrap"><: Domain :>:</th>
-                                <td>
-                                    <select name="inDomain" id="inDomain">
-                                        <option value="" selected="selected">-- <: Select a domain :> --</option>
-                                        <% loop DomainList %>
-                                        <option value="<& domain &>"><& domain &></option>
-                                        <% endloop %>
-                                    </select>
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Your Name :>:</th>
-                                <td>
-                                    <input type="text" name="inName" id="inName" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Domain Email :>:</th>
-                                <td>
-                                    <input type="text" name="inAddress" id="inAddress" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: City :>:</th>
-                                <td>
-                                    <input type="text" name="inCity" id="inCity" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Country :>:</th>
-                                <td>
-									<select name="inCountry" id="inCountry">
-                                    <option value="" selected="selected">-- <: Select country :> --</option>
-										<@ ListCountry @>
-									</select>
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Company :>:</th>
-                                <td>
-									<input type="text" name="inCompany" id="inCompany" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Key Password :>:</th>
-                                <td>
-									<input type="text" name="inPassword" id="inPasword" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><button class="button-loader btn btn-primary" type="submit" id="button" name="inSave" id="inSave"><: Save :></button></th>
-                                <td></td>
-                            </tr>
-							</table>
-            <@ CSFR_Tag @>
-        </form>
+		</div>
     </div>
-    <% endif %>
-	<% if isShowSelf %>
+<!-- Create Free Certificate -->
+<% if isShowSelf %>
     <div class="zgrid_wrapper">
-        <h2><: Self signed certificate :></h2>
+        <h2><: Create Free SSL Certificate :></h2>
         <form action="./?module=sencrypt&action=Makenew" method="post">
             <table class="table table-striped">
-                            <tr>
-                                <th nowrap="nowrap"><: Domain :>:</th>
-                                <td>
-                                    <select name="inDomain" id="inDomain">
-                                        <option value="" selected="selected">-- <: Select a domain :> --</option>
-                                        <% loop DomainList %>
-                                        <option value="<& domain &>"><& domain &></option>
-                                        <% endloop %>
-                                    </select><br>
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Your Name :>:</th>
-                                <td>
-                                    <input type="text" name="inName" id="inName" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Domain Email :>:</th>
-                                <td>
-                                    <input type="text" name="inAddress" id="inAddress" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: City :>:</th>
-                                <td>
-                                    <input type="text" name="inCity" id="inCity" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Country :>:</th>
-                                <td>
-									<select name="inCountry" id="inCountry">
-                                    <option value="" selected="selected">-- <: Select country :> --</option>
-										<@ ListCountry @>
-									</select>
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Company :>:</th>
-                                <td>
-									<input type="text" name="inCompany" id="inCompany" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><button class="button-loader btn btn-primary" type="submit" id="button" name="inSave" id="inSave"><: Save :></button></th>
-                                <td></td>
-                            </tr>
-							</table>
-            <@ CSFR_Tag @>
+                <tr>
+                    <th nowrap="nowrap"><: Domain :>:</th>
+                    <td>
+                        <select name="inDomain" id="inDomain">
+                            <option value="" selected="selected">-- <: Select a domain :> --</option>
+                            <% loop DomainList %>
+                            <option value="<& domain &>"><& domain &></option>
+                            <% endloop %>
+                        </select><br>
+                    </td>
+                </tr>
+                <tr>
+                    <th nowrap="nowrap"><button class="button-loader btn btn-primary" type="submit" id="button" name="inSave" id="inSave"><: Save :></button></th>
+                    <td></td>
+                </tr>
+            </table>
+        <@ CSFR_Tag @>
         </form>
     </div>
-    <% endif %>
-	<% if isBought %>
-    <div class="zgrid_wrapper">
-        <h2><: Bought certificate :></h2>
-		<form action="./?module=sencrypt&action=UploadSSL" method="post" enctype="multipart/form-data">
-		<table class="table table-striped">
-							<tr>
-                                <th nowrap="nowrap"><: Domain :>:</th>
-                                <td>
-                                    <select name="inDomain" id="inDomain">
-                                        <option value="" selected="selected">-- <: Select a domain :> --</option>
-                                        <% loop DomainList %>
-                                        <option value="<& domain &>"><& domain &></option>
-                                        <% endloop %>
-                                    </select>
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Domain Signing Certificate Key(.key) :>:</th>
-                                <td>
-								<input type="file" name="inkey" id="inkey" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: Signed Server Certificate(.cer) :>:</th>
-                                <td>
-								<input type="file" name="inWCA" id="inWCA" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><: CA Certificate (.cer) :>:</th>
-                                <td>
-								<input type="file" name="inICA" id="inICA" />
-                                </td>
-                            </tr>
-							<tr>
-                                <th nowrap="nowrap"><button class="button-loader btn btn-primary" type="submit" id="button" name="inCreateSSL" id="inCreateSSL"><: Save :></button></th>
-                                <td></td>
-                            </tr>
-							</table>
-				<@ CSFR_Tag @>
-			</form>
-		</div>
-	<% endif %>
+<% endif %>
 
+    <div>
+    	<p></p>
+		<@ Copyright @>
+	</div>
 </div>

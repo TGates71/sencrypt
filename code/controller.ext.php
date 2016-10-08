@@ -11,21 +11,56 @@ class module_controller extends ctrl_module {
 	static $error;
 	static $delok;
 	static $keyadd;
+	static $download;
 	static $empty;
-		
+	
+	static function ExecuteDownload($domain, $username) {
+		set_time_limit(0);
+		global $zdbh, $controller;
+		$domain = str_replace('.', '_', $domain);
+		$temp_dir = ctrl_options::GetSystemOption('sentora_root') . "etc/tmp/";
+		$homedir = ctrl_options::GetSystemOption('hosted_dir') . $username;
+		$backupname = $domain;
+		$resault = exec("cd " . $homedir . "/ssl/" .$domain ."/ && " . ctrl_options::GetSystemOption('zip_exe') . " -r9 " . $temp_dir . $backupname . " *");
+		@chmod($temp_dir . $backupname . ".zip", 0777);
+		$filename = $backupname . ".zip";
+		$filepath = $temp_dir;
+		header("Pragma: public");
+		header("Expires: 0");
+		header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+		header("Cache-Control: public");
+		header("Content-Description: File Transfer");
+		header("Content-type: application/octet-stream");
+		header("Content-Disposition: attachment; filename=\"".$filename."\"");
+		header("Content-Transfer-Encoding: binary");
+		header("Content-Length: ".filesize($filepath.$filename));
+		ob_end_flush();
+		readfile($filepath.$filename);
+		unlink($temp_dir . $backupname . ".zip");
+		return true;
+	}
+	
+	static function doDownload() {
+		global $controller;
+		$currentuser = ctrl_users::GetUserDetail();
+		$formvars = $controller->GetAllControllerRequests('FORM');
+		if (self::ExecuteDownload($formvars['inName'], $currentuser["username"]))
+		return true;
+	}
+	
 	static function doDelete() {
-        global $controller;
-        runtime_csfr::Protect();
-        $currentuser = ctrl_users::GetUserDetail();
-        $formvars = $controller->GetAllControllerRequests('FORM');
-        if (self::ExecuteDelete($formvars['inName'], $currentuser["username"]))
-            return true;
-        }
-		
+		global $controller;
+		runtime_csfr::Protect();
+		$currentuser = ctrl_users::GetUserDetail();
+		$formvars = $controller->GetAllControllerRequests('FORM');
+		if (self::ExecuteDelete($formvars['inName'], $currentuser["username"]))
+		return true;
+	}
+	
 	static function ExecuteDelete($domain, $username) {
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail();
-		$sslFolder = str_replace('.', '_', $domain);
+		//$sslFolder = str_replace('.', '_', $domain);
 		$dir = "/etc/letsencrypt/live/".$domain."/";
 		$objects = scandir($dir);
 		foreach ($objects as $object) {
@@ -33,7 +68,7 @@ class module_controller extends ctrl_module {
 				unlink($dir."/".$object);
 			}
 		 }
-		//reset($objects);
+		// will this attempt to remove the entire "/etc/letsencrypt/live/" path?
 		rmdir($dir);
 		
 		if($domain == ctrl_options::GetSystemOption('sentora_domain')) {
@@ -84,8 +119,8 @@ class module_controller extends ctrl_module {
 			
 		} else {
 
-			$port 			= NULL;
-			$portforward	= NULL;
+			$port = NULL;
+			$portforward = NULL;
 			$new = '';
 						
 			$line = "# Made from sencrypt start".fs_filehandler::NewLine();
@@ -120,7 +155,6 @@ class module_controller extends ctrl_module {
 			$line .= fs_filehandler::NewLine();
 			$line .= "# Made from sencrypt end".fs_filehandler::NewLine();
 	
-	
 			$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx = replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port, vh_portforward_in=:portforward WHERE vh_name_vc = :domain");
 			 
 			$sql->bindParam(':data', $line);
@@ -134,20 +168,20 @@ class module_controller extends ctrl_module {
 		self::$delok = true;
 		return true;
 	}
-		
+
 	static function doMakenew() {
-        global $controller;
-        runtime_csfr::Protect();
-        $currentuser = ctrl_users::GetUserDetail();
-        $formvars = $controller->GetAllControllerRequests('FORM');
-		if (empty($formvars['inDomain'])) { 
+		global $controller;
+		runtime_csfr::Protect();
+		$currentuser = ctrl_users::GetUserDetail();
+		$formvars = $controller->GetAllControllerRequests('FORM');
+		if (empty($formvars['inDomain']) || empty($formvars['inName'])) { 
 			self::$empty = true;
 			return false;
 		}
-        if (self::ExecuteMakessl($formvars['inDomain']))
-        	return true;
+		if (self::ExecuteMakessl($formvars['inDomain'], $formvars['inName']))
+			return true;
 	}
-		
+	
 	static function ExecuteMakessl($domain) {
 		global $zdbh;
 		global $controller;
@@ -243,39 +277,43 @@ class module_controller extends ctrl_module {
 	}
 
 	static function ListDomains($uid) {
-        global $zdbh, $controller;
-        $currentuser = ctrl_users::GetUserDetail($uid);
-        $sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
-        $numrows = $zdbh->prepare($sql);
-        $numrows->bindParam(':userid', $currentuser['userid']);
-        $numrows->execute();
-        if ($numrows->fetchColumn() <> 0) {
-            $sql = $zdbh->prepare($sql);
-            $sql->bindParam(':userid', $currentuser['userid']);
-            $res = array();
-            $sql->execute();
+		global $zdbh, $controller;
+		$currentuser = ctrl_users::GetUserDetail($uid);
+		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
+		$numrows = $zdbh->prepare($sql);
+		$numrows->bindParam(':userid', $currentuser['userid']);
+		$numrows->execute();
+		if ($numrows->fetchColumn() <> 0) {
+			$sql = $zdbh->prepare($sql);
+			$sql->bindParam(':userid', $currentuser['userid']);
+			$res = array();
+			$sql->execute();
 			if($currentuser["username"] == "zadmin") {
-					$name = ctrl_options::GetSystemOption('sentora_domain');
+				$name = ctrl_options::GetSystemOption('sentora_domain');
 				$res[] = array('domain' => "$name");
 			}
-            while ($rowdomains = $sql->fetch()) {
-                $res[] = array('domain' => $rowdomains['vh_name_vc']);
-            }
-            return $res;
-        } else {
-            return false;
-        }
+			while ($rowdomains = $sql->fetch()) {
+				$res[] = array('domain' => $rowdomains['vh_name_vc']);
+			}
+			return $res;
+		} else {
+			return false;
+		}
 	}
-		
+	
 	static function getDomainList() {
 		$currentuser = ctrl_users::GetUserDetail();
 		return self::ListDomains($currentuser['userid']);
 	}
-	
+// error here... need to fix this function first!
 	static function ListSSL($uname) {
 		global $controller;
 		// need to cross reference user's domains with matching ssl domain folders use a for-each?
 		//foreach ($domain as $folder) // example
+		print_r($uname);
+		echo "<br>";
+		print_r($domain);
+		echo "<br>";
 			if (!is_dir("/etc/letsencrypt/live/".$domain."/")) {
 				mkdir("/etc/letsencrypt/live/".$domain."/", 0777);
 			}
@@ -291,70 +329,68 @@ class module_controller extends ctrl_module {
 		return $retval;
 	//} //end for each
 	}
-	
+
 	static function getSSLList() {
 		$currentuser = ctrl_users::GetUserDetail();
 		return self::ListSSL($currentuser['username']);
 	}
-		
-	static function getisShowCSR() {
-        global $controller;
-        $urlvars = $controller->GetAllControllerRequests('URL');
-        return (isset($urlvars['show'])) && ($urlvars['show'] == "ShowCSR");
-	}
-	
+
 	static function getisShowSelf() {
-        global $controller;
-        $urlvars = $controller->GetAllControllerRequests('URL');
-        return (isset($urlvars['show'])) && ($urlvars['show'] == "ShowSelf");
-		}
-	
+		global $controller;
+		$urlvars = $controller->GetAllControllerRequests('URL');
+		return (isset($urlvars['show'])) && ($urlvars['show'] == "ShowSelf");
+	}
+
 	static function doselect() {
-        global $controller;
-        runtime_csfr::Protect();
-        $currentuser = ctrl_users::GetUserDetail();
-        $formvars = $controller->GetAllControllerRequests('FORM');
-		
-		if (isset($formvars['inSSLself'])) {
-			header("location: ./?module=".$controller->GetCurrentModule().'&show=ShowSelf');
-			exit;
-		}
-		if (isset($formvars['inSSLbought'])) {
-			header("location: ./?module=".$controller->GetCurrentModule().'&show=Bought');
-			exit;
-		}
-		if (isset($formvars['inSSLCSR'])) {
-			header("location: ./?module=".$controller->GetCurrentModule().'&show=ShowCSR');
+		global $controller;
+		runtime_csfr::Protect();
+		$currentuser = ctrl_users::GetUserDetail();
+		$formvars = $controller->GetAllControllerRequests('FORM');
+	
+		if (isset($formvars['inSSLcreate'])) {
+			header("location: ./?module=" . $controller->GetCurrentModule() . '&show=ShowSelf');
 			exit;
 		}
 		return true;
 	}
-
+	
 	static function SetWriteApacheConfigTrue() {
-        global $zdbh;
-        $sql = $zdbh->prepare("UPDATE x_settings
+		global $zdbh;
+		$sql = $zdbh->prepare("UPDATE x_settings
 								SET so_value_tx='true'
 								WHERE so_name_vc='apache_changed'");
-        $sql->execute();
-    }
+		$sql->execute();
+	}
 
 	static function getResult() {
 		if (self::$ok) {
-			return ui_sysmessage::shout(ui_language::translate("You SSL has been made. It will be ready in about 5 min."), "zannounceok");
+			return ui_sysmessage::shout(ui_language::translate("Your FREE SSL Certificate has been made. It will be ready in about 5 minutes."), "zannounceok");
 		}
 		if (self::$delok) {
-            return ui_sysmessage::shout(ui_language::translate("The selected certificate has been deleted."), "zannounceerror");
-        }
+			return ui_sysmessage::shout(ui_language::translate("The selected certificate has been deleted."), "zannounceerror");
+		}
 		if (self::$error) {
-            return ui_sysmessage::shout(ui_language::translate("A certificate with that name already exists."), "zannounceerror");
-        }
+			return ui_sysmessage::shout(ui_language::translate("A certificate with that name already exists."), "zannounceerror");
+		}
 		if (self::$empty) {
-            return ui_sysmessage::shout(ui_language::translate("An empty field is not allowed."), "zannounceerror");
-        }
+			return ui_sysmessage::shout(ui_language::translate("An empty field is not allowed."), "zannounceerror");
+		}
+		// remove
 		if (self::$keyadd) {
-            return ui_sysmessage::shout(ui_language::translate("Certificate Signing Request was made and sent to the mail you have entered"), "zannounceok");
-        }
-        return;
+			return ui_sysmessage::shout(ui_language::translate("Certificate Signing Request was made and sent to the mail you have entered"), "zannounceok");
+		}
+		return;
+	}
+
+    static function getCopyright() {
+        $copyright = '<font face="ariel" size="2">'.ui_module::GetModuleName().' v0.0.1 &copy; 2016-'.date("Y").' by <a target="_blank" href="http://forums.sentora.org/member.php?action=profile&uid=2">TGates</a> for <a target="_blank" href="http://sentora.org">Sentora Control Panel</a>&nbsp;&#8212;&nbsp;Help support future development of this module and donate today!</font>
+<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
+<input type="hidden" name="cmd" value="_s-xclick">
+<input type="hidden" name="hosted_button_id" value="DW8QTHWW4FMBY">
+<input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" width="70" height="21" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
+<img alt="" border="0" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1" height="1">
+</form>';
+        return $copyright;
     }
 }
 ?>
