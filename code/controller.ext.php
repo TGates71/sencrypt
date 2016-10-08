@@ -17,11 +17,11 @@ class module_controller extends ctrl_module {
 	static function ExecuteDownload($domain, $username) {
 		set_time_limit(0);
 		global $zdbh, $controller;
-		$domain = str_replace('.', '_', $domain);
+		//$domain = str_replace('.', '_', $domain);
 		$temp_dir = ctrl_options::GetSystemOption('sentora_root') . "etc/tmp/";
-		$homedir = ctrl_options::GetSystemOption('hosted_dir') . $username;
+		$homedir = "../../../etc/letsencrypt/live/";
 		$backupname = $domain;
-		$resault = exec("cd " . $homedir . "/ssl/" .$domain ."/ && " . ctrl_options::GetSystemOption('zip_exe') . " -r9 " . $temp_dir . $backupname . " *");
+		$resault = exec("cd " . $homedir . $domain ."/ && " . ctrl_options::GetSystemOption('zip_exe') . " -r9 " . $temp_dir . $backupname . " *");
 		@chmod($temp_dir . $backupname . ".zip", 0777);
 		$filename = $backupname . ".zip";
 		$filepath = $temp_dir;
@@ -61,7 +61,7 @@ class module_controller extends ctrl_module {
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail();
 		//$sslFolder = str_replace('.', '_', $domain);
-		$dir = "/etc/letsencrypt/live/".$domain."/";
+		$dir = "../../../etc/letsencrypt/live/".$domain."/";
 		$objects = scandir($dir);
 		foreach ($objects as $object) {
 			if ($object != "." && $object != "..") {
@@ -174,11 +174,11 @@ class module_controller extends ctrl_module {
 		runtime_csfr::Protect();
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
-		if (empty($formvars['inDomain']) || empty($formvars['inName'])) { 
+		if (empty($formvars['inDomain'])) { 
 			self::$empty = true;
 			return false;
 		}
-		if (self::ExecuteMakessl($formvars['inDomain'], $formvars['inName']))
+		if (self::ExecuteMakessl($formvars['inDomain']))
 			return true;
 	}
 	
@@ -189,11 +189,11 @@ class module_controller extends ctrl_module {
 		$formvars = $controller->GetAllControllerRequests('FORM');
 		$sslFolder = str_replace('.', '_', $domain);
 		
-		if (!is_dir("/etc/letsencrypt/live/".$domain."/")) {
-				mkdir("/etc/letsencrypt/live/".$domain."/", 0777);
+		if (!is_dir("../../../etc/letsencrypt/live/".$domain."/")) {
+				mkdir("../../../etc/letsencrypt/live/".$domain."/", 0777);
 		}
-		if (!is_dir("/etc/letsencrypt/live/".$domain."/")) {
-				mkdir("/etc/letsencrypt/live/".$domain."/", 0777);
+		if (!is_dir("../../../etc/letsencrypt/live/".$domain."/")) {
+				mkdir("../../../etc/letsencrypt/live/".$domain."/", 0777);
 		} else {
 			self::$error = true;
 			return false;
@@ -310,20 +310,20 @@ class module_controller extends ctrl_module {
 		global $controller;
 		// need to cross reference user's domains with matching ssl domain folders use a for-each?
 		//foreach ($domain as $folder) // example
-		print_r($uname);
+
+		$letsEncriptCerts = "../../../etc/letsencrypt/live/";
+		
 		echo "<br>";
-		print_r($domain);
-		echo "<br>";
-			if (!is_dir("/etc/letsencrypt/live/".$domain."/")) {
-				mkdir("/etc/letsencrypt/live/".$domain."/", 0777);
+			if (!is_dir($letsEncriptCerts)) {
+				mkdir($letsEncriptCerts, 0777);
 			}
-			$dir = "/etc/letsencrypt/live/".$domain."/";
-			if(substr($dir, -1) != "/") $dir .= "/";
-			$d = @dir($dir);
+			//$dir = "/etc/letsencrypt/live/";
+			if(substr($letsEncriptCerts, -1) != "/") $letsEncriptCerts .= "/";
+			$d = @dir($letsEncriptCerts);
 			while(false !== ($entry = $d->read())) {
-				$entry1 = str_replace('_', '.', $entry);
+				//$entry1 = str_replace('_', '.', $entry);
 				if($entry[0] == ".") continue;
-				$retval[] = array("name" => "$entry1");
+				$retval[] = array("name" => "$entry");
 			}
 		$d->close();
 		return $retval;
@@ -335,25 +335,6 @@ class module_controller extends ctrl_module {
 		return self::ListSSL($currentuser['username']);
 	}
 
-	static function getisShowSelf() {
-		global $controller;
-		$urlvars = $controller->GetAllControllerRequests('URL');
-		return (isset($urlvars['show'])) && ($urlvars['show'] == "ShowSelf");
-	}
-
-	static function doselect() {
-		global $controller;
-		runtime_csfr::Protect();
-		$currentuser = ctrl_users::GetUserDetail();
-		$formvars = $controller->GetAllControllerRequests('FORM');
-	
-		if (isset($formvars['inSSLcreate'])) {
-			header("location: ./?module=" . $controller->GetCurrentModule() . '&show=ShowSelf');
-			exit;
-		}
-		return true;
-	}
-	
 	static function SetWriteApacheConfigTrue() {
 		global $zdbh;
 		$sql = $zdbh->prepare("UPDATE x_settings
