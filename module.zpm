@@ -70,7 +70,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <th nowrap="nowrap"><button class="button-loader btn btn-primary" type="submit" id="button" name="inSave" id="inSave"><: Save :></button></th>
+                    <th nowrap="nowrap"><button class="button-loader btn btn-primary" type="submit" id="button" name="inSave" id="inSave"><: Create Certificate :></button></th>
                     <td></td>
                 </tr>
             </table>
