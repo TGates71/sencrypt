@@ -11,14 +11,14 @@
     </div>
 	
 <@ Result @>
-	
+
+<% if SSLList %>
 	<div class="zgrid_wrapper">
         <form action="./?module=sencrypt&action=select" method="post">
             <button class="btn btn-primary" type="button" data-toggle="modal" data-target=".bs-example-modal-lg"><: View My Certificates :></button>
             <@ CSFR_Tag @> 
         </form>
 	</div>
-	
 	
 	<div class="modal fade bs-example-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel">
 		<div class="modal-dialog modal-lg">
@@ -46,8 +46,14 @@
 			</div>
 		</div>
     </div>
+<% else %>
+    <div class="zgrid_wrapper">
+        <h3><: My Certificates :></h3>
+		You have no certificates installed.
+	</div>
+<% endif %>
 
-<!-- Create Free Certificate -->
+<% if DomainList %>
     <div class="zgrid_wrapper">
         <h2><: Create Free SSL Certificate :></h2>
         <form action="./?module=sencrypt&action=Makenew" method="post">
@@ -71,6 +77,13 @@
         <@ CSFR_Tag @>
         </form>
     </div>
+<% else %>
+    <div class="zgrid_wrapper">
+        <h3><: Create A Free SSL Certificate :></h3>
+		You have no Domains or Sub Domains active on this account.
+	</div>
+<% endif %>
+<p>&nbsp;</p>
 <!-- copyright -->
     <div>
     	<p></p>
