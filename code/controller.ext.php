@@ -283,7 +283,39 @@ echo "<h1>SSL Domain: ".$domain."</h1>";
 			while ($rowdomains = $sql->fetch()) {
 				$res[] = array('domain' => $rowdomains['vh_name_vc']);
 			}
-			return $res;
+			
+			$letsEncryptCerts = "../../../etc/letsencrypt/live/";
+			// create SSL folder if not exist
+			if (!is_dir($letsEncryptCerts)) {
+				mkdir($letsEncryptCerts, 0777);
+			}
+	
+			if(substr($letsEncryptCerts, -1) != "/") $letsEncryptCerts .= "/";
+			// get list of all active SSL certificates
+			$d = @dir($letsEncryptCerts);
+			while(false !== ($entry = $d->read())) {
+				if($entry[0] == ".") continue;
+				$sslDomains[] = array("domain" => "$entry");
+			}
+			$d->close();
+	
+			// extract non-matching client domains from active SSL domains
+			foreach($res as $aV){
+				$aTmp1[] = $aV['domain'];
+			}
+			
+			foreach($sslDomains as $aV){
+				$aTmp2[] = $aV['domain'];
+			}
+
+			$nonSSLlist = array_diff($aTmp1,$aTmp2);
+			// create new multidimentional array
+			$result = array();
+			foreach ($nonSSLlist as $row) {
+			   $result[]['domain'] = $row;
+			}
+
+			return $result;
 		} else {
 			return false;
 		}
@@ -295,7 +327,25 @@ echo "<h1>SSL Domain: ".$domain."</h1>";
 	}
 // error here... need to fix this function first!
 	static function ListSSL($uname) {
-		global $controller;
+		global $zdbh, $controller;
+		$currentuser = ctrl_users::GetUserDetail($uid);
+		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
+		$numrows = $zdbh->prepare($sql);
+		$numrows->bindParam(':userid', $currentuser['userid']);
+		$numrows->execute();
+		//if ($numrows->fetchColumn() <> 0) {
+			$sql = $zdbh->prepare($sql);
+			$sql->bindParam(':userid', $currentuser['userid']);
+			$res = array();
+			$sql->execute();
+			if($currentuser["username"] == "zadmin") {
+				$name = ctrl_options::GetSystemOption('sentora_domain');
+				$usersDomains[] = array('domain' => "$name");
+			}
+			while ($rowdomains = $sql->fetch()) {
+				$usersDomains[] = array('domain' => $rowdomains['vh_name_vc']);
+			}
+
 		// need to cross reference user's domains with matching ssl domain folders
 		$letsEncriptCerts = "../../../etc/letsencrypt/live/";
 		
@@ -311,29 +361,32 @@ echo "<h1>SSL Domain: ".$domain."</h1>";
 				$sslDomains[] = array("name" => "$entry");
 			}
 			$d->close();
-			
+
 			// get user's domains
-			$userDomains = self::ListDomains($currentuser['userid']);
+			$currentUserDomains = self::ListDomains($currentuser['uis']);
+	
 			// convert key from 'domain' to 'name'
-			array_walk($userDomains, function (&$key) {
+			array_walk($usersDomains, function (&$key) {
 			   $key['name'] = $key['domain'];
 			   unset($key['domain']);
 			});
-			
-			// extract matching client domains from active SSL domains
-			$newArray = array();
-			foreach($userDomains AS $key => $val){
-				$newArray[$val['name']] = $val;
+
+			// extract non-matching client domains from active SSL domains
+			foreach($usersDomains as $aV){
+				$aTmp1[] = $aV['name'];
 			}
 			
-			$userDomains = array();
-			foreach($sslDomains AS $key => $val){
-				if(isset($newArray[$val['name']])){
-					$userDomains[] = $newArray[$val['name']];
-				}
+			foreach($sslDomains as $aV){
+				$aTmp2[] = $aV['name'];
 			}
 
-		return $userDomains;
+			$nonSSLlist = array_intersect($aTmp1,$aTmp2);
+			// create new multidimentional array
+			$result = array();
+			foreach ($nonSSLlist as $row) {
+			   $result[]['name'] = $row;
+			}
+		return $result;
 	}
 
 	static function getSSLList() {
