@@ -333,7 +333,7 @@ echo "<h1>SSL Domain: ".$domain."</h1>";
 		$numrows = $zdbh->prepare($sql);
 		$numrows->bindParam(':userid', $currentuser['userid']);
 		$numrows->execute();
-		//if ($numrows->fetchColumn() <> 0) {
+		if ($numrows->fetchColumn() <> 0) {
 			$sql = $zdbh->prepare($sql);
 			$sql->bindParam(':userid', $currentuser['userid']);
 			$res = array();
@@ -386,7 +386,11 @@ echo "<h1>SSL Domain: ".$domain."</h1>";
 			foreach ($nonSSLlist as $row) {
 			   $result[]['name'] = $row;
 			}
-		return $result;
+
+			return $result;
+		} else {
+			return false;
+		}
 	}
 
 	static function getSSLList() {
