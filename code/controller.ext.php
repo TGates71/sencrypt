@@ -4,7 +4,17 @@
  * Based off of Cer_Manager module by Diablo925
  * Version : 001
  */
- 
+
+// for LEscript
+// you can use any logger according to Psr\Log\LoggerInterface
+class Logger {
+	function __call($name, $arguments) {
+		echo date('Y-m-d H:i:s')." [$name] ${arguments[0]}\n";
+	}
+}
+
+$logger = new Logger();
+
 class module_controller extends ctrl_module {
 		
 	static $ok;
@@ -21,7 +31,7 @@ class module_controller extends ctrl_module {
 		$temp_dir = ctrl_options::GetSystemOption('sentora_root') . "etc/tmp/";
 		$ssldir = "../../../etc/letsencrypt/live/";
 		$backupname = $domain;
-		$resault = exec("cd " . $ssldir . $domain ."/ && " . ctrl_options::GetSystemOption('zip_exe') . " -r9 " . $temp_dir . $backupname . " *");
+		$resault = exec("/etc/letsencrypt/live/" . $domain . "/ && " . ctrl_options::GetSystemOption('zip_exe') . " -r9 " . $temp_dir . $backupname . " *");
 		@chmod($temp_dir . $backupname . ".zip", 0777);
 		$filename = $backupname . ".zip";
 		$filepath = $temp_dir;
@@ -61,14 +71,13 @@ class module_controller extends ctrl_module {
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail();
 		//$sslFolder = str_replace('.', '_', $domain);
-		$dir = "../../../etc/letsencrypt/live/".$domain."/";
+		$dir = "/etc/letsencrypt/live/".$domain;
 		$objects = scandir($dir);
 		foreach ($objects as $object) {
 			if ($object != "." && $object != "..") {
 				unlink($dir."/".$object);
 			}
 		 }
-		// will this attempt to remove the entire "/etc/letsencrypt/live/" path?
 		rmdir($dir);
 		
 		if($domain == ctrl_options::GetSystemOption('sentora_domain')) {
@@ -91,20 +100,20 @@ class module_controller extends ctrl_module {
 			$sql->bindParam(':name', $name);
 			$sql->execute();
 			
-			$line = "# Made from sencrypt start".fs_filehandler::NewLine();
-			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
-			$line .= "SSLCertificateFile /etc/letsencrypt/live/".$domain."/cert.pem".fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/privkey.pem".fs_filehandler::NewLine();
-			$line .= "SSLProtocol All -SSLv2 -SSLv3".fs_filehandler::NewLine();
-			$line .= "SSLHonorCipherOrder on".fs_filehandler::NewLine();
-			$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"".fs_filehandler::NewLine();
-			$line .= "# Made from sencrypt end".fs_filehandler::NewLine();
-			
-			$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = replace(so_value_tx, :data, :new) WHERE so_name_vc = :name");
-			$sql->bindParam(':data', $line);
-			$sql->bindParam(':new', $new);
-			$sql->bindParam(':name', $name);
-			$sql->execute();
+//			$line = "# Made from sencrypt start".fs_filehandler::NewLine();
+//			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
+//			$line .= "SSLCertificateFile /etc/letsencrypt/live/".$domain."/cert.pem".fs_filehandler::NewLine();
+//			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/privkey.pem".fs_filehandler::NewLine();
+//			$line .= "SSLProtocol All -SSLv2 -SSLv3".fs_filehandler::NewLine();
+//			$line .= "SSLHonorCipherOrder on".fs_filehandler::NewLine();
+//			$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"".fs_filehandler::NewLine();
+//			$line .= "# Made from sencrypt end".fs_filehandler::NewLine();
+//			
+//			$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = replace(so_value_tx, :data, :new) WHERE so_name_vc = :name");
+//			$sql->bindParam(':data', $line);
+//			$sql->bindParam(':new', $new);
+//			$sql->bindParam(':name', $name);
+//			$sql->execute();
 					
 			$portname = "sentora_port";
 			$port = "80";
@@ -138,23 +147,23 @@ class module_controller extends ctrl_module {
 			$sql->bindParam(':portforward', $portforward);
 			$sql->execute();
 				
-			$line = "# Made from sencrypt start".fs_filehandler::NewLine();
-			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
-			$line .= "SSLCertificateFile /etc/letsencrypt/live/".$domain."/cert.pem".fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/privkey.pem".fs_filehandler::NewLine();
-			$line .= "SSLProtocol All -SSLv2 -SSLv3".fs_filehandler::NewLine();
-			$line .= "SSLHonorCipherOrder on".fs_filehandler::NewLine();
-			$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"".fs_filehandler::NewLine();
-			$line .= "# Made from sencrypt end".fs_filehandler::NewLine();
-	
-			$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx = replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port, vh_portforward_in=:portforward WHERE vh_name_vc = :domain");
-			 
-			$sql->bindParam(':data', $line);
-			$sql->bindParam(':new', $new);
-			$sql->bindParam(':domain', $domain);
-			$sql->bindParam(':port', $port);
-			$sql->bindParam(':portforward', $portforward);
-			$sql->execute();
+//			$line = "# Made from sencrypt start".fs_filehandler::NewLine();
+//			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
+//			$line .= "SSLCertificateFile /etc/letsencrypt/live/".$domain."/cert.pem".fs_filehandler::NewLine();
+//			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/privkey.pem".fs_filehandler::NewLine();
+//			$line .= "SSLProtocol All -SSLv2 -SSLv3".fs_filehandler::NewLine();
+//			$line .= "SSLHonorCipherOrder on".fs_filehandler::NewLine();
+//			$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"".fs_filehandler::NewLine();
+//			$line .= "# Made from sencrypt end".fs_filehandler::NewLine();
+//	
+//			$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx = replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port, vh_portforward_in=:portforward WHERE vh_name_vc = :domain");
+//			 
+//			$sql->bindParam(':data', $line);
+//			$sql->bindParam(':new', $new);
+//			$sql->bindParam(':domain', $domain);
+//			$sql->bindParam(':port', $port);
+//			$sql->bindParam(':portforward', $portforward);
+//			$sql->execute();
 		}
 		self::SetWriteApacheConfigTrue();
 		self::$delok = true;
@@ -176,30 +185,85 @@ class module_controller extends ctrl_module {
 	
 	static function ExecuteMakessl($domain) {
 		global $zdbh, $controller;
+		$zsudo = ctrl_options::GetOption('zsudo');
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
-		$sslFolder = str_replace('.', '_', $domain);
-		
-		if (!is_dir("../../../etc/letsencrypt/live/".$domain."/")) {
-				mkdir("../../../etc/letsencrypt/live/".$domain."/", 0777);
-		}
-		if (!is_dir("../../../etc/letsencrypt/live/".$domain."/")) {
-				mkdir("../../../etc/letsencrypt/live/".$domain."/", 0777);
+		$certDir = "../../../etc/letsencrypt/live/".$domain."/";
+		if (!is_dir($certDir)) {
+			mkdir($certDir, 0777);
+			switch($sysOS){                                                                                 
+				case 'Linux':                                                                               
+					exec("sudo chown -R root.root " . $certDir);                               
+					exec("sudo chmod -R 0777 " . $certDir);                                            
+				break;                                                                                      
+				case 'Unix':                                                                                
+					exec("$zsudo chown -R root:root " . $certDir);                               
+					exec("$zsudo chmod -R 0777 " . $certDir);                                            
+				break;                                                                                      
+				default:                                                                                    
+					//windows or incompilable operating system !!Do Nothing!!                               
+				break;                                                                                      
+			}
 		} else {
 			self::$error = true;
 			return false;
 		}
-echo "<h1>SSL Domain: ".$domain."</h1>";
-		// use let's encrypt create SSL command:
-		// COMMAND LINE: ./certbot-auto certonly --standalone -d domain.com
-		$command = ctrl_options::GetSystemOption('zsudo');
-		  // stop apache
-		$args = array("service", ctrl_options::GetSystemOption('apache_sn'), "stop");
-		$returnValue = ctrl_system::systemCommand($command, $args);
-		  // create cert
-		$returnValue = ctrl_system::systemCommand($command, "./certbot-auto certonly --standalone -d ".$domain);
-		  // start apache
-		$args = array("service", ctrl_options::GetSystemOption('apache_sn'), "start");
+
+// testing
+if(!defined("PHP_VERSION_ID") || PHP_VERSION_ID < 50300 || !extension_loaded('openssl') || !extension_loaded('curl'))
+{
+    die("You need at least PHP 5.3.0 with OpenSSL and curl extension enabled\n");
+}
+
+require('modules/sencrypt/code/letsencrypt.php');
+
+try {
+	
+	$domain_folder = str_replace(".","_", $domain);
+	$username = $currentuser['username'];
+ 
+    //$le = new Analogic\ACME\Lescript('/etc/letsencrypt/live/'.$domain.'', '/var/sentora/hostdata/'.$username.'/public_html/'.$domain_folder.'', $domain, $logger);
+    # or without logger:
+    $le = new Analogic\ACME\Lescript('/etc/letsencrypt/live/'.$domain.'', '/var/sentora/hostdata/'.$username.'/public_html/'.$domain_folder.'', $domain);
+	
+	$mailto = "mailto:postmaster@".$domain;
+    $le->contact = array($mailto); // optional
+
+    $le->initAccount();
+	// auto-set www.domain
+	$wwwDomain = "www.".$domain;
+    $le->signDomains(array($domain, $wwwDomain));
+
+} catch (\Exception $e) {
+
+    $logger->error($e->getMessage());
+    $logger->error($e->getTraceAsString());
+}
+//		// use let's encrypt create SSL command:
+//		// COMMAND LINE: ./certbot-auto certonly --standalone -d domain.com -d www.domain.com
+//		$command = ctrl_options::GetSystemOption('zsudo');
+//		// setup webroot path
+//		$hostdatadir = ctrl_options::GetOption('hosted_dir')."".$currentuser['username'];
+//		$domain_folder = str_replace("_",".", $domain);
+//		$domain_root = $hostdatadir."/public_html".$domain_folder;
+//
+//		// stop apache
+//		//$args = array("service", ctrl_options::GetSystemOption('apache_sn'), "stop");
+//		//$returnValue = ctrl_system::systemCommand($command, $args);
+//		//$returnValue = system("service " . ctrl_options::GetSystemOption('apache_sn') . " stop", $returnValue);
+//		//$returnValue = exec($command ."service " . ctrl_options::GetSystemOption('apache_sn') . " stop");
+//		
+//		// create certificate
+//		// certbot-auto --apache -d example.com -d www.example.com
+//		//$args = "../../../root/certbot/certbot-auto certonly --apache -d ".$domain." -d www.".$domain;
+//		$args = "/root/letsencrypt/bin/letsencrypt auth -a webroot --email postmaster@$domain -d $domain -d www.$domain --webroot-path $domain_root";
+//		//escapeshellcmd("/root/letsencrypt/bin/letsencrypt auth -a webroot --email postmaster@$domain --domains $lddomain --webroot-path $webroot");
+//		//$args = "../../../root/certbot/certbot-auto certonly --standalone -d " . $domain . " -d www." . $domain;
+//		$returnValue = exec($args);
+
+		// start apache
+		//$args = array("service", ctrl_options::GetSystemOption('apache_sn'), "start");
+		//$returnValue = ctrl_system::systemCommand($command, $args);
 
 		if ($domain == ctrl_options::GetSystemOption('sentora_domain')) {
 			
@@ -325,7 +389,7 @@ echo "<h1>SSL Domain: ".$domain."</h1>";
 		$currentuser = ctrl_users::GetUserDetail();
 		return self::ListDomains($currentuser['userid']);
 	}
-// error here... need to fix this function first!
+	
 	static function ListSSL($uname) {
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail($uid);

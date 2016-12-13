@@ -1,7 +1,7 @@
 <?php
 /**
  * Installer for Sencypt Module for sentora 1.0.3
- * Version : 001
+ * Version : 001 
  */
  
 require_once('cnf/db.php');
@@ -16,11 +16,30 @@ require_once('dryden/fs/director.class.php');
 require_once('dryden/fs/filehandler.class.php');
 require_once('inc/dbc.inc.php');
 
-
 function installModule(){
+    global $zdbh;
+    $install = $zdbh->prepare("CREATE TABLE IF NOT EXISTS `x_sencrypt-vhosts` (
+		`ssl_vh_id_pk` int(6) unsigned NOT NULL AUTO_INCREMENT,
+		`ssl_vh_acc_fk` int(6) DEFAULT NULL,
+		`ssl_vh_name_vc` varchar(255) CHARACTER SET latin1 COLLATE latin1_general_ci DEFAULT NULL,
+		`ssl_vh_directory_vc` varchar(255) CHARACTER SET latin1 COLLATE latin1_general_ci DEFAULT NULL,
+		`ssl_vh_type_in` int(1) DEFAULT '1',
+		`ssl_vh_active_in` int(1) DEFAULT '0',
+		`ssl_vh_suhosin_in` int(1) DEFAULT '1',
+		`ssl_vh_obasedir_in` int(1) DEFAULT '1',
+		`ssl_vh_custom_tx` text,
+		`ssl_vh_custom_port_in` int(6) DEFAULT NULL,
+		`ssl_vh_custom_ip_vc` varchar(45) DEFAULT NULL,
+		`ssl_vh_portforward_in` int(1) DEFAULT NULL,
+		`ssl_vh_soaserial_vc` CHAR(10) DEFAULT 'AAAAMMDDSS',
+		`ssl_vh_enabled_in` int(1) DEFAULT '1',
+		`ssl_vh_created_ts` int(30) DEFAULT NULL,
+		`ssl_vh_deleted_ts` int(30) DEFAULT NULL,
+		PRIMARY KEY (`ssl_vh_id_pk`)
+		) ENGINE=MyISAM DEFAULT CHARSET=utf8;");
+     $install->execute();
 }
 
-//install
-installModule();
+//installModule();
 
 ?>
