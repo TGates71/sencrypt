@@ -161,7 +161,7 @@ class module_controller extends ctrl_module {
 		{
 			die("You need at least PHP 5.3.0 with OpenSSL and curl extension installed.\n");
 		}
-		require("modules/sencrypt/code/Lescrypt.php");
+		require("modules/sencrypt/code/Lescript.php");
 		// Always use UTC
 		date_default_timezone_set("UTC");
 		// Make sure our cert location exists
