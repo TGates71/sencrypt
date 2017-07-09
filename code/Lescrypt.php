@@ -169,8 +169,7 @@ class Lescript
         $csr =	$reuseCsr && is_file($domainPath . "/last.csr") ?
             	$this->getCsrContent($domainPath . "/last.csr") :
             	$this->generateCSR($privateDomainKey, $domain);
-print_r("Test1<br>");
-var_dump($csr);
+
         // request certificates creation
         $result = $this->signedRequest(
             "/acme/new-cert",
@@ -224,7 +223,7 @@ var_dump($csr);
         print_r("Saving chain.pem");
         file_put_contents($domainPath . "/chain.pem", implode("\n", $certificates));
 
-        print_r("Done !!§§!");
+        print_r("Done!");
     }
 
     private function readPrivateKey($path)
