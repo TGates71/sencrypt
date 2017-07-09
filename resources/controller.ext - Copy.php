@@ -7,7 +7,12 @@
 
 // for LEscript
 // you can use any logger according to Psr\Log\LoggerInterface
-class Logger { function __call($name, $arguments) { echo date('Y-m-d H:i:s')." [$name] ${arguments[0]}\n"; }}
+class Logger {
+	function __call($name, $arguments) {
+		echo date('Y-m-d H:i:s')." [$name] ${arguments[0]}\n";
+	}
+}
+
 $logger = new Logger();
 
 class module_controller extends ctrl_module {
@@ -135,7 +140,7 @@ class module_controller extends ctrl_module {
 
 	static function doMakenew() {
 		global $controller;
-		//runtime_csfr::Protect();
+		runtime_csfr::Protect();
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
 		if (empty($formvars['inDomain'])) { 
@@ -148,42 +153,59 @@ class module_controller extends ctrl_module {
 	
 	static function ExecuteMakessl($domain) {
 		global $zdbh, $controller;
-		
 		$zsudo = ctrl_options::GetOption('zsudo');
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
-		$certlocation = "/etc/letsencrypt/live/".$domain."/";
-		$domain_folder = str_replace(".","_", $domain);
-		$username = $currentuser['username'];
-		$webroot = "/var/sentora/hostdata/".$username."/public_html/".$domain_folder;
-		
+		$certDir = "../../../etc/letsencrypt/live/".$domain."/";
+		if (!is_dir($certDir)) {
+			mkdir($certDir, 0777);
+			switch($sysOS){                                                                                 
+				case 'Linux':                                                                               
+					exec($zsudo . " chown -R root.root " . $certDir);                               
+					exec($zsudo . " chmod -R 0777 " . $certDir);                                            
+				break;                                                                                      
+				case 'Unix':                                                                                
+					exec($zsudo . " chown -R root:root " . $certDir);                               
+					exec($zsudo . " chmod -R 0777 " . $certDir);                                            
+				break;                                                                                      
+				default:                                                                                    
+					//windows or incompilable operating system !!Do Nothing!!                               
+				break;                                                                                      
+			}
+		} else {
+			self::$error = true;
+			return false;
+		}
+
+		// testing
 		if(!defined("PHP_VERSION_ID") || PHP_VERSION_ID < 50300 || !extension_loaded('openssl') || !extension_loaded('curl'))
 		{
-			die("You need at least PHP 5.3.0 with OpenSSL and curl extension installed.\n");
+			die("You need at least PHP 5.3.0 with OpenSSL and curl extension enabled\n");
 		}
-		require("modules/sencrypt/code/Lescrypt.php");
-		// Always use UTC
-		date_default_timezone_set("UTC");
-		// Make sure our cert location exists
-		if (!is_dir($certlocation)) {
-			// Make sure nothing is already there.
-			if (file_exists($certlocation)) {
-				unlink($certlocation);
-			}
-			mkdir ($certlocation);
-		}
+
+		include('modules/sencrypt/code/Lescrypt.php');
+
 		try
 		{
-			$le = new Analogic\ACME\Lescript($certlocation, $webroot, $logger);
+			$domain_folder = str_replace(".","_", $domain);
+			$username = $currentuser['username'];
+		 
+			$le = new Analogic\ACME\Lescript("/etc/letsencrypt/live/".$domain, "/var/sentora/hostdata/".$username."/public_html/".$domain_folder, $domain, $logger);
 			# or without logger:
-			# $le = new Analogic\ACME\Lescript($certlocation, $webroot);
+			//$le = new Analogic\ACME\Lescript('/etc/letsencrypt/live/'.$domain.'', '/var/sentora/hostdata/'.$username.'/public_html/'.$domain_folder.'', $domain);
+			
+			$mailto = "mailto:postmaster@".$domain;
+			$le->contact = array($mailto); // optional
+
 			$le->initAccount();
-			$le->signDomains($domain);
+			// auto-set www.domain
+			$wwwDomain = "www.".$domain;
+			$le->signDomains(array($domain, $wwwDomain));
+
 		} catch (\Exception $e) {
+
 			$logger->error($e->getMessage());
 			$logger->error($e->getTraceAsString());
-			// Exit with an error code, something went wrong.
-			exit(1);
 		}
 
 		if ($domain == ctrl_options::GetSystemOption('sentora_domain')) {

@@ -1,5 +1,5 @@
 <?php
-
+// lets encrypt class - start
 namespace Analogic\ACME;
 
 class Lescript
@@ -9,7 +9,7 @@ class Lescript
     public $license = 'https://letsencrypt.org/documents/LE-SA-v1.1.1-August-1-2016.pdf';
     public $countryCode = 'US';
     public $state = "Massachusetts";
-    public $challenge = 'http-01'; // http-01 challange only
+    public $challenge = 'http-01'; // http-01 challenge only
     public $contact = array(); // optional
     //public $contact = array("mailto:postmaster@".$domain);
 
@@ -548,4 +548,5 @@ class Base64UrlSafeEncoder
         return base64_decode(strtr($input, '-_', '+/'));
     }
 }
+// lets encrypt class - end
 ?>

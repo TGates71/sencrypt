@@ -74,7 +74,7 @@
                     <td></td>
                 </tr>
             </table>
-        <@ CSFR_Tag @>
+        CSFR_Tag
         </form>
     </div>
 <% else %>
