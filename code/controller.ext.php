@@ -1,13 +1,51 @@
 <?php
 /**
- * Controller for Sencypt Module for sentora 1.0.3
- * Based off of Cer_Manager module by Diablo925
+ * Controller for Sencypt Module for Sentora 1.0.3
  * Version : 001
+ * Author : TGates
+ * Based off of Cer_Manager module by Diablo925
  */
 
-// for LEscript
-// you can use any logger according to Psr\Log\LoggerInterface
-class Logger { function __call($name, $arguments) { echo date('Y-m-d H:i:s')." [$name] ${arguments[0]}\n"; }}
+// for posible later use to re-use the account associated with the daomin
+// function to check if certificates exist
+function check_for_active_certs($dir)
+{
+    $result = false;
+    if($dh = opendir($dir))
+	{
+        while(!$result && ($file = readdir($dh)) !== false)
+		{
+            $result = $file !== "." && $file !== ".." && $file !== "_account" && !is_dir($file);
+        }
+        closedir($dh);
+    }
+    return $result;
+}
+// function to completely remove a domain's cert folder
+function delete_folder($target)
+{
+    if(is_dir($target))
+	{
+        $files = glob($target.'*', GLOB_MARK ); //GLOB_MARK adds a slash to directories returned
+
+        foreach($files as $file)
+        {
+            delete_folder($file);      
+        }
+
+        rmdir($target);
+    } elseif (is_file($target))
+	{
+        unlink($target);  
+    }
+}
+// for LEscript you can use any logger according to Psr\Log\LoggerInterface
+class Logger {
+	function __call($name, $arguments)
+	{
+		echo date('Y-m-d H:i:s')." [$name] ${arguments[0]}\n";
+	}
+}
 $logger = new Logger();
 
 class module_controller extends ctrl_module {
@@ -22,7 +60,6 @@ class module_controller extends ctrl_module {
 	static function ExecuteDownload($domain, $username) {
 		set_time_limit(0);
 		global $zdbh, $controller;
-		//$domain = str_replace('.', '_', $domain);
 		$temp_dir = ctrl_options::GetSystemOption('sentora_root') . "etc/tmp/";
 		$ssldir = "../../../etc/letsencrypt/live/";
 		$backupname = $domain;
@@ -65,29 +102,31 @@ class module_controller extends ctrl_module {
 	static function ExecuteDelete($domain, $username) {
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail();
-		//$sslFolder = str_replace('.', '_', $domain);
+
 		$dir = "/etc/letsencrypt/live/".$domain;
-		$objects = scandir($dir);
-		foreach ($objects as $object) {
-			if ($object != "." && $object != "..") {
-				unlink($dir."/".$object);
-			}
-		 }
-		rmdir($dir);
+		
+		delete_folder($dir);
+//		$objects = scandir($dir);
+//		foreach ($objects as $object) {
+//			if ($object != "." && $object != "..") {
+//				unlink($dir."/".$object);
+//			}
+//		 }
+//		rmdir($dir);
 		
 		if($domain == ctrl_options::GetSystemOption('sentora_domain')) {
 			$name = 'global_zpcustom';
 			$new = '';
-			$line = "# SSL Made from sencrypt start".fs_filehandler::NewLine();
+			$line = "# SSL-Sencrypt - START".fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
 			$line .= "SSLCertificateFile /etc/letsencrypt/live/".$domain."/cert.pem".fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/privkey.pem".fs_filehandler::NewLine();
-			$line .= "SSLCACertificateFile /etc/letsencrypt/live/".$domain."/crtchain.pem".fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/private.pem".fs_filehandler::NewLine();
+			$line .= "SSLCACertificateFile /etc/letsencrypt/live/".$domain."/chain.pem".fs_filehandler::NewLine();
 
 			$line .= "SSLProtocol All -SSLv2 -SSLv3".fs_filehandler::NewLine();
 			$line .= "SSLHonorCipherOrder on".fs_filehandler::NewLine();
 			$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"".fs_filehandler::NewLine();
-			$line .= "# SSL Made from sencrypt end".fs_filehandler::NewLine();
+			$line .= "# SSL-Sencrypt - END".fs_filehandler::NewLine();
 			
 			$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = replace(so_value_tx, :data, :new) WHERE so_name_vc = :name");
 			$sql->bindParam(':data', $line);
@@ -108,16 +147,16 @@ class module_controller extends ctrl_module {
 			$portforward = NULL;
 			$new = '';
 						
-			$line = "# SSL Made from sencrypt start".fs_filehandler::NewLine();
+			$line = "# SSL-Sencrypt - START".fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
 			$line .= "SSLCertificateFile /etc/letsencrypt/live/".$domain."/cert.pem".fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/privkey.pem".fs_filehandler::NewLine();
-			$line .= "SSLCACertificateFile /etc/letsencrypt/live/".$domain."/crtchain.pem".fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/private.pem".fs_filehandler::NewLine();
+			$line .= "SSLCACertificateFile /etc/letsencrypt/live/".$domain."/chain.pem".fs_filehandler::NewLine();
 
 			$line .= "SSLProtocol All -SSLv2 -SSLv3".fs_filehandler::NewLine();
 			$line .= "SSLHonorCipherOrder on".fs_filehandler::NewLine();
 			$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"".fs_filehandler::NewLine();
-			$line .= "# SSL Made from sencrypt end".fs_filehandler::NewLine();
+			$line .= "# SSL-Sencrypt - END".fs_filehandler::NewLine();
 
 			$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx = replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port, vh_portforward_in=:portforward WHERE vh_name_vc = :domain");
 			 
@@ -135,7 +174,7 @@ class module_controller extends ctrl_module {
 
 	static function doMakenew() {
 		global $controller;
-		//runtime_csfr::Protect();
+		//runtime_csfr::Protect(); // disabled for testing
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
 		if (empty($formvars['inDomain'])) { 
@@ -149,19 +188,24 @@ class module_controller extends ctrl_module {
 	static function ExecuteMakessl($domain) {
 		global $zdbh, $controller;
 		
+		// set Lescript vars
 		$zsudo = ctrl_options::GetOption('zsudo');
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
 		$certlocation = "/etc/letsencrypt/live/".$domain."/";
 		$domain_folder = str_replace(".","_", $domain);
+		$domain_folder = str_replace("www.","", $domain_folder);
 		$username = $currentuser['username'];
 		$webroot = "/var/sentora/hostdata/".$username."/public_html/".$domain_folder;
-		
+
+// start Lescript		
 		if(!defined("PHP_VERSION_ID") || PHP_VERSION_ID < 50300 || !extension_loaded('openssl') || !extension_loaded('curl'))
 		{
 			die("You need at least PHP 5.3.0 with OpenSSL and curl extension installed.\n");
 		}
+		
 		require("modules/sencrypt/code/Lescript.php");
+
 		// Always use UTC
 		date_default_timezone_set("UTC");
 		// Make sure our cert location exists
@@ -174,30 +218,35 @@ class module_controller extends ctrl_module {
 		}
 		try
 		{
-			$le = new Analogic\ACME\Lescript($certlocation, $webroot, $logger);
+			// $le = new Analogic\ACME\Lescript($certlocation, $webroot, $logger);
 			# or without logger:
-			# $le = new Analogic\ACME\Lescript($certlocation, $webroot);
+			$le = new Analogic\ACME\Lescript($certlocation, $webroot);
+			
+			// for later inclusion - use client's email used during registration
+			// $le->contact = array('mailto:test@test.com'); // optional
+			
 			$le->initAccount();
-			$le->signDomains($domain);
+			$le->signDomains(array($domain));
+			//$le->signDomains(array($domain, 'www.'.$domain));
 		} catch (\Exception $e) {
 			$logger->error($e->getMessage());
 			$logger->error($e->getTraceAsString());
 			// Exit with an error code, something went wrong.
 			exit(1);
 		}
-
+// end Lescript
 		if ($domain == ctrl_options::GetSystemOption('sentora_domain')) {
 			
-			$line = "# Made from sencrypt start".fs_filehandler::NewLine();
+			$line = "# SSL-Sencrypt - START".fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
 			$line .= "SSLCertificateFile /etc/letsencrypt/live/".$domain."/cert.pem".fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/privkey.pem".fs_filehandler::NewLine();
-			$line .= "SSLCACertificateFile /etc/letsencrypt/live/".$domain."/crtchain.pem".fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/private.pem".fs_filehandler::NewLine();
+			$line .= "SSLCACertificateFile /etc/letsencrypt/live/".$domain."/chain.pem".fs_filehandler::NewLine();
 
 			$line .= "SSLProtocol All -SSLv2 -SSLv3".fs_filehandler::NewLine();
 			$line .= "SSLHonorCipherOrder on".fs_filehandler::NewLine();
 			$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"".fs_filehandler::NewLine();
-			$line .= "# Made from sencrypt end".fs_filehandler::NewLine();
+			$line .= "# SSL-Sencrypt - END".fs_filehandler::NewLine();
 			
 			$name = 'global_zpcustom';
             $sql = $zdbh->prepare("SELECT * FROM x_settings WHERE so_name_vc  = :name");
@@ -221,16 +270,16 @@ class module_controller extends ctrl_module {
 		
 		} else {
 			
-			$line = "# Made from sencrypt start".fs_filehandler::NewLine();
+			$line = "# SSL-Sencrypt - START".fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
 			$line .= "SSLCertificateFile /etc/letsencrypt/live/".$domain."/cert.pem".fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/privkey.pem".fs_filehandler::NewLine();
-			$line .= "SSLCACertificateFile /etc/letsencrypt/live/".$domain."/crtchain.pem".fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile /etc/letsencrypt/live/".$domain."/private.pem".fs_filehandler::NewLine();
+			$line .= "SSLCACertificateFile /etc/letsencrypt/live/".$domain."/chain.pem".fs_filehandler::NewLine();
 
 			$line .= "SSLProtocol All -SSLv2 -SSLv3".fs_filehandler::NewLine();
 			$line .= "SSLHonorCipherOrder on".fs_filehandler::NewLine();
 			$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"".fs_filehandler::NewLine();
-			$line .= "# Made from sencrypt end".fs_filehandler::NewLine();
+			$line .= "# SSL-Sencrypt - END".fs_filehandler::NewLine();
 			
 			$port = "443";
 			$portforward = "1";
@@ -335,16 +384,17 @@ class module_controller extends ctrl_module {
 				$usersDomains[] = array('domain' => $rowdomains['vh_name_vc']);
 			}
 
-		// need to cross reference user's domains with matching ssl domain folders
-		$letsEncriptCerts = "../../../etc/letsencrypt/live/";
+			// set some folders up if they do not exist
+			$letsEncriptCerts = "../../../etc/letsencrypt/live/";
 		
 			if (!is_dir($letsEncriptCerts)) {
 				mkdir($letsEncriptCerts, 0777);
 			}
 
 			if(substr($letsEncriptCerts, -1) != "/") $letsEncriptCerts .= "/";
-			
+			// need to cross reference user's domains with matching ssl domain folders
 			$d = @dir($letsEncriptCerts);
+			
 			while(false !== ($entry = $d->read())) {
 				if($entry[0] == ".") continue;
 				$sslDomains[] = array("name" => "$entry");
@@ -370,12 +420,19 @@ class module_controller extends ctrl_module {
 			}
 
 			$nonSSLlist = array_intersect($aTmp1,$aTmp2);
+			
+			// for possible future use
+			// check if user's domain folders have any certificates
+//			foreach ($nonSSLlist as $row) {
+//				// returns false if folder has no certs else true if folder has certs
+//			   $hasSSL[]['domain'] = check_for_active_certs($letsEncriptCerts.$row);
+//			}
+//			var_dump($hasSSL);
 			// create new multidimentional array
 			$result = array();
 			foreach ($nonSSLlist as $row) {
 			   $result[]['name'] = $row;
 			}
-
 			return $result;
 		} else {
 			return false;
@@ -389,9 +446,7 @@ class module_controller extends ctrl_module {
 
 	static function SetWriteApacheConfigTrue() {
 		global $zdbh;
-		$sql = $zdbh->prepare("UPDATE x_settings
-								SET so_value_tx='true'
-								WHERE so_name_vc='apache_changed'");
+		$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx='true' WHERE so_name_vc='apache_changed'");
 		$sql->execute();
 	}
 
