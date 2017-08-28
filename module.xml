@@ -3,6 +3,8 @@
     <name>Sencrypt</name>
     <version>001</version>
     <defaultcat>Domain Management</defaultcat>
+	<type>user</type>
+	<ostype>lin</ostype>
     <desc>Add or remove Let's Encrypt FREE! SSL certificates for your domains and sub domains</desc>
     <authorname>TGates</authorname>
     <authoremail>tgates@sentora.org</authoremail>
