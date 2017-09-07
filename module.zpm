@@ -30,7 +30,7 @@
                 <table class="table">
                     <% loop SSLList %>
                         <tr>
-                        <td><& name &></td>
+                        <td><a target="_blank" href="http://<& name &>"><& name &></a></td>
                         <form action="./?module=sencrypt&action=Download" method="post">
                             <td><input type="hidden" name="inName" value="<& name &>">
                             <button class="btn btn-primary" type="submit" id="button" name="inDownload_<& name &>" id="inDownload_<& name &>" value="inDownload_<& name &>"><: Download :></button></td>

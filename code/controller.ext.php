@@ -193,6 +193,13 @@ class module_controller extends ctrl_module {
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
 		$certlocation = "/etc/letsencrypt/live/".$domain."/";
+		// convert below to use domain path from DB table instead of assuming domain = domain path
+		// get proper domain path from DB
+//		$domain_folder = $zdbh->prepare("SELECT vh_directory_vc FROM x_vhosts WHERE vh_name_vc=:domain");
+//		$domain_folder->bindParam(':domain', $domain);
+//		$domain_folder->execute();
+//		$domain_folder = $zdbh->fetchColumn();
+//		var_dump($domain_folder);
 		$domain_folder = str_replace(".","_", $domain);
 		$domain_folder = str_replace("www.","", $domain_folder);
 		$username = $currentuser['username'];
@@ -218,9 +225,9 @@ class module_controller extends ctrl_module {
 		}
 		try
 		{
-			// $le = new Analogic\ACME\Lescript($certlocation, $webroot, $logger);
+			$le = new Analogic\ACME\Lescript($certlocation, $webroot, $logger);
 			# or without logger:
-			$le = new Analogic\ACME\Lescript($certlocation, $webroot);
+			//$le = new Analogic\ACME\Lescript($certlocation, $webroot);
 			
 			// for later inclusion - use client's email used during registration
 			// $le->contact = array('mailto:test@test.com'); // optional
@@ -471,7 +478,7 @@ class module_controller extends ctrl_module {
 	}
 
     static function getCopyright() {
-        $copyright = '<font face="ariel" size="2">'.ui_module::GetModuleName().' v0.0.1 &copy; 2016-'.date("Y").' by <a target="_blank" href="http://forums.sentora.org/member.php?action=profile&uid=2">TGates</a> for <a target="_blank" href="http://sentora.org">Sentora Control Panel</a>&nbsp;&#8212;&nbsp;Help support future development of this module and donate today!</font>
+        $copyright = '<font face="ariel" size="2">'.ui_module::GetModuleName().' v0.0.2 &copy; 2016-'.date("Y").' by <a target="_blank" href="http://forums.sentora.org/member.php?action=profile&uid=2">TGates</a> for <a target="_blank" href="http://sentora.org">Sentora Control Panel</a>&nbsp;&#8212;&nbsp;Help support future development of this module and donate today!</font>
 <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
 <input type="hidden" name="cmd" value="_s-xclick">
 <input type="hidden" name="hosted_button_id" value="DW8QTHWW4FMBY">

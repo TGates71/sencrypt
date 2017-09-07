@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <module>
     <name>Sencrypt</name>
-    <version>001</version>
+    <version>002</version>
     <defaultcat>Domain Management</defaultcat>
 	<type>user</type>
 	<ostype>lin</ostype>
