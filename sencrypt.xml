@@ -2,8 +2,8 @@
 <updateserver>
 	<latestversion>002</latestversion>
 	<downloadurl>http://zppy-repo.mach-hosting.com/testing/sencrypt.zpp</downloadurl>
-	<desc>Add or remove Let's Encrypt FREE! SSL certificates for your domains and sub domains.</desc>
-	<updatedesc>Still in development</updatedesc>
+	<desc>Add, revoke or delete Let's Encrypt FREE! SSL certificates for your domains and sub domains.</desc>
+	<updatedesc>Still in development - testing renewals</updatedesc>
 	<authorname>TGates</authorname>
 	<authoremail>tgates@sentora.org</authoremail>
 	<authorurl>http://www.sentora.org</authorurl>

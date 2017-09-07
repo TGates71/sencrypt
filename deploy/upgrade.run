@@ -1,7 +1,9 @@
 <?php
 /**
- * Upgrader for Sencypt Module for sentora 1.0.3
- * Version : 001
+ * Upgrade script for Sencrypt Module for Sentora 1.0.3
+ * Version : 002
+ * Author : TGates
+ * Additional work by Diablo925
  */
  
 require_once('cnf/db.php');

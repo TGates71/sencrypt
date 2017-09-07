@@ -1,4 +1,10 @@
 <?php
+/**
+ * Lescript file customized for Sencrypt Module for Sentora 1.0.3
+ * Version : 002
+ * Author : TGates
+ * Additional work by Diablo925
+ */
 // lets encrypt class - start
 namespace Analogic\ACME;
 

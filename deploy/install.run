@@ -1,7 +1,9 @@
 <?php
 /**
- * Installer for Sencypt Module for Sentora 1.0.3
- * Version : 001 
+ * Install script for Sencrypt Module for Sentora 1.0.3
+ * Version : 002
+ * Author : TGates
+ * Additional work by Diablo925
  */
  
 require_once('cnf/db.php');

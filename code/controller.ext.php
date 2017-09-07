@@ -1,12 +1,11 @@
 <?php
 /**
- * Controller for Sencypt Module for Sentora 1.0.3
- * Version : 001
+ * Controller for Sencrypt Module for Sentora 1.0.3
+ * Version : 002
  * Author : TGates
- * Based off of Cer_Manager module by Diablo925
+ * Additional work by Diablo925
  */
 
-// for posible later use to re-use the account associated with the daomin
 // function to check if certificates exist
 function check_for_active_certs($dir)
 {
@@ -26,7 +25,7 @@ function delete_folder($target)
 {
     if(is_dir($target))
 	{
-        $files = glob($target.'*', GLOB_MARK ); //GLOB_MARK adds a slash to directories returned
+        $files = glob($target.'*', GLOB_MARK );
 
         foreach($files as $file)
         {
@@ -106,13 +105,6 @@ class module_controller extends ctrl_module {
 		$dir = "/etc/letsencrypt/live/".$domain;
 		
 		delete_folder($dir);
-//		$objects = scandir($dir);
-//		foreach ($objects as $object) {
-//			if ($object != "." && $object != "..") {
-//				unlink($dir."/".$object);
-//			}
-//		 }
-//		rmdir($dir);
 		
 		if($domain == ctrl_options::GetSystemOption('sentora_domain')) {
 			$name = 'global_zpcustom';
@@ -174,7 +166,7 @@ class module_controller extends ctrl_module {
 
 	static function doMakenew() {
 		global $controller;
-		//runtime_csfr::Protect(); // disabled for testing
+		runtime_csfr::Protect();
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
 		if (empty($formvars['inDomain'])) { 
@@ -226,8 +218,6 @@ class module_controller extends ctrl_module {
 		try
 		{
 			$le = new Analogic\ACME\Lescript($certlocation, $webroot, $logger);
-			# or without logger:
-			//$le = new Analogic\ACME\Lescript($certlocation, $webroot);
 			
 			// for later inclusion - use client's email used during registration
 			// $le->contact = array('mailto:test@test.com'); // optional

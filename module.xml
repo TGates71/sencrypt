@@ -5,7 +5,7 @@
     <defaultcat>Domain Management</defaultcat>
 	<type>user</type>
 	<ostype>lin</ostype>
-    <desc>Add or remove Let's Encrypt FREE! SSL certificates for your domains and sub domains</desc>
+    <desc>Add, revoke or delete Let's Encrypt FREE! SSL certificates for your domains and sub domains.</desc>
     <authorname>TGates</authorname>
     <authoremail>tgates@sentora.org</authoremail>
     <authorurl>http://www.sentora.org/</authorurl>

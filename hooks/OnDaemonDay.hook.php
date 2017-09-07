@@ -1,4 +1,10 @@
 <?php
+/**
+ * Daily Certificate Renewal script for Sencrypt Module for Sentora 1.0.3
+ * Version : 002
+ * Author : TGates
+ * Additional work by Diablo925
+ */
 echo fs_filehandler::NewLine() . "START Sencrypt Renewal Hook." . fs_filehandler::NewLine();
 if (ui_module::CheckModuleEnabled('Sencrypt'))
 {
