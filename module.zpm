@@ -7,7 +7,7 @@
         </div>
 
         <div class="zmodule_desc" id="zmodule_desc_<@ ModuleName @>"><@ ModuleDesc @></div>
-		THIS IS AN ALPHA TEST VERSION - IS SET TO USE LETSENCRYPT'S STAGING SERVER. NOT FOR PRODUCTION USE!
+		THIS IS AN ALPHA TEST VERSION - NOW USING LIVE SERVER! - NOT READY FOR PRODUCTION USE!
     </div>
 	
 <@ Result @>
