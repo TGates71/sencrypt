@@ -33,13 +33,15 @@ function delete_folder($target)
         }
 
         rmdir($target);
-    } elseif (is_file($target))
+    }
+	elseif (is_file($target))
 	{
         unlink($target);  
     }
 }
 // for LEscript you can use any logger according to Psr\Log\LoggerInterface
-class Logger {
+class Logger
+{
 	function __call($name, $arguments)
 	{
 		echo date('Y-m-d H:i:s')." [$name] ${arguments[0]}\n";
@@ -47,7 +49,8 @@ class Logger {
 }
 $logger = new Logger();
 
-class module_controller extends ctrl_module {
+class module_controller extends ctrl_module
+{
 		
 	static $ok;
 	static $error;
@@ -56,7 +59,8 @@ class module_controller extends ctrl_module {
 	static $download;
 	static $empty;
 	
-	static function ExecuteDownload($domain, $username) {
+	static function ExecuteDownload($domain, $username)
+	{
 		set_time_limit(0);
 		global $zdbh, $controller;
 		$temp_dir = ctrl_options::GetSystemOption('sentora_root') . "etc/tmp/";
@@ -81,7 +85,8 @@ class module_controller extends ctrl_module {
 		return true;
 	}
 	
-	static function doDownload() {
+	static function doDownload()
+	{
 		global $controller;
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
@@ -89,7 +94,8 @@ class module_controller extends ctrl_module {
 		return true;
 	}
 	
-	static function doDelete() {
+	static function doDelete()
+	{
 		global $controller;
 		runtime_csfr::Protect();
 		$currentuser = ctrl_users::GetUserDetail();
@@ -98,7 +104,8 @@ class module_controller extends ctrl_module {
 		return true;
 	}
 	
-	static function ExecuteDelete($domain, $username) {
+	static function ExecuteDelete($domain, $username)
+	{
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail();
 
@@ -106,7 +113,8 @@ class module_controller extends ctrl_module {
 		
 		delete_folder($dir);
 		
-		if($domain == ctrl_options::GetSystemOption('sentora_domain')) {
+		if ($domain == ctrl_options::GetSystemOption('sentora_domain'))
+		{
 			$name = 'global_zpcustom';
 			$new = '';
 			$line = "# SSL-Sencrypt - START".fs_filehandler::NewLine();
@@ -133,7 +141,9 @@ class module_controller extends ctrl_module {
 			$updatesql->bindParam(':name', $portname);
 			$updatesql->execute();
 			
-		} else {
+		}
+		else
+		{
 
 			$port = NULL;
 			$portforward = NULL;
@@ -164,12 +174,14 @@ class module_controller extends ctrl_module {
 		return true;
 	}
 
-	static function doMakenew() {
+	static function doMakenew()
+	{
 		global $controller;
 		runtime_csfr::Protect();
 		$currentuser = ctrl_users::GetUserDetail();
 		$formvars = $controller->GetAllControllerRequests('FORM');
-		if (empty($formvars['inDomain'])) { 
+		if (empty($formvars['inDomain']))
+		{ 
 			self::$empty = true;
 			return false;
 		}
@@ -177,7 +189,8 @@ class module_controller extends ctrl_module {
 			return true;
 	}
 	
-	static function ExecuteMakessl($domain) {
+	static function ExecuteMakessl($domain)
+	{
 		global $zdbh, $controller;
 		
 		// set Lescript vars
@@ -198,7 +211,7 @@ class module_controller extends ctrl_module {
 		$webroot = "/var/sentora/hostdata/".$username."/public_html/".$domain_folder;
 
 // start Lescript		
-		if(!defined("PHP_VERSION_ID") || PHP_VERSION_ID < 50300 || !extension_loaded('openssl') || !extension_loaded('curl'))
+		if (!defined("PHP_VERSION_ID") || PHP_VERSION_ID < 50300 || !extension_loaded('openssl') || !extension_loaded('curl'))
 		{
 			die("You need at least PHP 5.3.0 with OpenSSL and curl extension installed.\n");
 		}
@@ -208,9 +221,11 @@ class module_controller extends ctrl_module {
 		// Always use UTC
 		date_default_timezone_set("UTC");
 		// Make sure our cert location exists
-		if (!is_dir($certlocation)) {
+		if (!is_dir($certlocation))
+		{
 			// Make sure nothing is already there.
-			if (file_exists($certlocation)) {
+			if (file_exists($certlocation))
+			{
 				unlink($certlocation);
 			}
 			mkdir ($certlocation);
@@ -225,15 +240,17 @@ class module_controller extends ctrl_module {
 			$le->initAccount();
 			$le->signDomains(array($domain));
 			//$le->signDomains(array($domain, 'www.'.$domain));
-		} catch (\Exception $e) {
+		}
+		catch (\Exception $e)
+		{
 			$logger->error($e->getMessage());
 			$logger->error($e->getTraceAsString());
 			// Exit with an error code, something went wrong.
 			exit(1);
 		}
 // end Lescript
-		if ($domain == ctrl_options::GetSystemOption('sentora_domain')) {
-			
+		if ($domain == ctrl_options::GetSystemOption('sentora_domain'))
+		{
 			$line = "# SSL-Sencrypt - START".fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
 			$line .= "SSLCertificateFile /etc/letsencrypt/live/".$domain."/cert.pem".fs_filehandler::NewLine();
@@ -249,7 +266,8 @@ class module_controller extends ctrl_module {
             $sql = $zdbh->prepare("SELECT * FROM x_settings WHERE so_name_vc  = :name");
             $sql->bindParam(':name', $name);
             $sql->execute();
-            while ($row = $sql->fetch()) {
+            while ($row = $sql->fetch())
+			{
 				$olddata = $row['so_value_tx'];
 			}
 			$data = $olddata.$line;
@@ -265,7 +283,9 @@ class module_controller extends ctrl_module {
 			$updatesql->bindParam(':name', $portname);
 			$updatesql->execute();
 		
-		} else {
+		}
+		else
+		{
 			
 			$line = "# SSL-Sencrypt - START".fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' .fs_filehandler::NewLine();
@@ -299,92 +319,109 @@ class module_controller extends ctrl_module {
 		return true;	
 	}
 
-	static function ListDomains($uid) {
+	static function ListDomains($uid)
+	{
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail($uid);
 		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
 		$numrows = $zdbh->prepare($sql);
 		$numrows->bindParam(':userid', $currentuser['userid']);
 		$numrows->execute();
-		if ($numrows->fetchColumn() <> 0) {
+		if ($numrows->fetchColumn() <> 0)
+		{
 			$sql = $zdbh->prepare($sql);
 			$sql->bindParam(':userid', $currentuser['userid']);
 			$res = array();
 			$sql->execute();
-			if($currentuser["username"] == "zadmin") {
+			if($currentuser["username"] == "zadmin")
+			{
 				$name = ctrl_options::GetSystemOption('sentora_domain');
 				$res[] = array('domain' => "$name");
 			}
-			while ($rowdomains = $sql->fetch()) {
+			while ($rowdomains = $sql->fetch())
+			{
 				$res[] = array('domain' => $rowdomains['vh_name_vc']);
 			}
 			
 			$letsEncryptCerts = "../../../etc/letsencrypt/live/";
 			// create SSL folder if not exist
-			if (!is_dir($letsEncryptCerts)) {
+			if (!is_dir($letsEncryptCerts))
+			{
 				mkdir($letsEncryptCerts, 0777);
 			}
 	
 			if(substr($letsEncryptCerts, -1) != "/") $letsEncryptCerts .= "/";
 			// get list of all active SSL certificates
 			$d = @dir($letsEncryptCerts);
-			while(false !== ($entry = $d->read())) {
+			while(false !== ($entry = $d->read()))
+			{
 				if($entry[0] == ".") continue;
 				$sslDomains[] = array("domain" => "$entry");
 			}
 			$d->close();
 	
 			// extract non-matching client domains from active SSL domains
-			foreach($res as $aV){
+			foreach($res as $aV)
+			{
 				$aTmp1[] = $aV['domain'];
 			}
 			
-			foreach($sslDomains as $aV){
+			foreach($sslDomains as $aV)
+			{
 				$aTmp2[] = $aV['domain'];
 			}
 
 			$nonSSLlist = array_diff($aTmp1,$aTmp2);
 			// create new multidimentional array
 			$result = array();
-			foreach ($nonSSLlist as $row) {
+			foreach ($nonSSLlist as $row)
+			{
 			   $result[]['domain'] = $row;
 			}
 
 			return $result;
-		} else {
+		}
+		else
+		{
 			return false;
 		}
 	}
 	
-	static function getDomainList() {
+	static function getDomainList()
+	{
 		$currentuser = ctrl_users::GetUserDetail();
 		return self::ListDomains($currentuser['userid']);
 	}
 	
-	static function ListSSL($uname) {
+	static function ListSSL($uname)
+	{
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail($uid);
 		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
 		$numrows = $zdbh->prepare($sql);
 		$numrows->bindParam(':userid', $currentuser['userid']);
 		$numrows->execute();
-		if ($numrows->fetchColumn() <> 0) {
+		if ($numrows->fetchColumn() <> 0)
+		{
 			$sql = $zdbh->prepare($sql);
 			$sql->bindParam(':userid', $currentuser['userid']);
 			$res = array();
 			$sql->execute();
-			if($currentuser["username"] == "zadmin") {
+			if($currentuser["username"] == "zadmin")
+			{
 				$name = ctrl_options::GetSystemOption('sentora_domain');
 				$usersDomains[] = array('domain' => "$name");
 			}
-			while ($rowdomains = $sql->fetch()) {
+			while ($rowdomains = $sql->fetch())
+			{
 				$usersDomains[] = array('domain' => $rowdomains['vh_name_vc']);
 			}
 
 			// set some folders up if they do not exist
 			$letsEncriptCerts = "../../../etc/letsencrypt/live/";
 		
-			if (!is_dir($letsEncriptCerts)) {
+			if (!is_dir($letsEncriptCerts))
+			{
 				mkdir($letsEncriptCerts, 0777);
 			}
 
@@ -392,14 +429,15 @@ class module_controller extends ctrl_module {
 			// need to cross reference user's domains with matching ssl domain folders
 			$d = @dir($letsEncriptCerts);
 			
-			while(false !== ($entry = $d->read())) {
+			while (false !== ($entry = $d->read()))
+			{
 				if($entry[0] == ".") continue;
 				$sslDomains[] = array("name" => "$entry");
 			}
 			$d->close();
 
 			// get user's domains
-			$currentUserDomains = self::ListDomains($currentuser['uis']);
+			$currentUserDomains = self::ListDomains($currentuser['uid']);
 	
 			// convert key from 'domain' to 'name'
 			array_walk($usersDomains, function (&$key) {
@@ -408,11 +446,13 @@ class module_controller extends ctrl_module {
 			});
 
 			// extract non-matching client domains from active SSL domains
-			foreach($usersDomains as $aV){
+			foreach($usersDomains as $aV)
+			{
 				$aTmp1[] = $aV['name'];
 			}
 			
-			foreach($sslDomains as $aV){
+			foreach($sslDomains as $aV)
+			{
 				$aTmp2[] = $aV['name'];
 			}
 
@@ -427,47 +467,59 @@ class module_controller extends ctrl_module {
 //			var_dump($hasSSL);
 			// create new multidimentional array
 			$result = array();
-			foreach ($nonSSLlist as $row) {
+			foreach ($nonSSLlist as $row)
+			{
 			   $result[]['name'] = $row;
 			}
 			return $result;
-		} else {
+		}
+		else
+		{
 			return false;
 		}
 	}
 
-	static function getSSLList() {
+	static function getSSLList()
+	{
 		$currentuser = ctrl_users::GetUserDetail();
 		return self::ListSSL($currentuser['username']);
 	}
 
-	static function SetWriteApacheConfigTrue() {
+	static function SetWriteApacheConfigTrue()
+	{
 		global $zdbh;
 		$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx='true' WHERE so_name_vc='apache_changed'");
 		$sql->execute();
 	}
 
-	static function getResult() {
-		if (self::$ok) {
-			return ui_sysmessage::shout(ui_language::translate("Your FREE SSL Certificate has been made. It will be ready in about 5 minutes."), "zannounceok");
+	static function getResult()
+	{
+		if (self::$ok)
+		{
+			return ui_sysmessage::shout(ui_language::translate("Your FREE SSL Certificate has been made. It will be active in about 5 minutes."), "zannounceok");
 		}
-		if (self::$delok) {
+		if (self::$delok)
+		{
 			return ui_sysmessage::shout(ui_language::translate("The selected certificate has been deleted."), "zannounceerror");
 		}
-		if (self::$error) {
+		if (self::$error)
+		{
 			return ui_sysmessage::shout(ui_language::translate("A certificate with that name already exists."), "zannounceerror");
 		}
-		if (self::$empty) {
+		if (self::$empty)
+		{
 			return ui_sysmessage::shout(ui_language::translate("An empty field is not allowed."), "zannounceerror");
 		}
 		// remove
-		if (self::$keyadd) {
+		if (self::$keyadd)
+		{
 			return ui_sysmessage::shout(ui_language::translate("Certificate Signing Request was made and sent to the mail you have entered"), "zannounceok");
 		}
 		return;
 	}
 
-    static function getCopyright() {
+    static function getCopyright()
+	{
         $copyright = '<font face="ariel" size="2">'.ui_module::GetModuleName().' v0.0.2 &copy; 2016-'.date("Y").' by <a target="_blank" href="http://forums.sentora.org/member.php?action=profile&uid=2">TGates</a> for <a target="_blank" href="http://sentora.org">Sentora Control Panel</a>&nbsp;&#8212;&nbsp;Help support future development of this module and donate today!</font>
 <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
 <input type="hidden" name="cmd" value="_s-xclick">

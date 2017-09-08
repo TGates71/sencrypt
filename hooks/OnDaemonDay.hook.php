@@ -85,19 +85,24 @@ function renewCertificates()
 			$needsgen = false;
 			
 			// Do we HAVE a certificate for all our domains?
-			foreach ($domains as $d) {
+			foreach ($domains as $d)
+			{
 				//$certfile = "$certlocation/$d/cert.pem";
 				$certfile = "$certlocation/cert.pem";
-				if (!file_exists($certfile)) {
+				if (!file_exists($certfile))
+				{
 					// We don't have a cert, so we need to request one.
 					$needsgen = true;
-				} else {
+				}
+				else
+				{
 					// We DO have a certificate.
 					$certdata = openssl_x509_parse(file_get_contents($certfile));
 					print_r("Checking certificate for: " . $d . "...");
 					// If it expires in less than a month, we want to renew it.
 					$renewafter = $certdata['validTo_time_t']-(86400*30);
-					if (time() > $renewafter) {
+					if (time() > $renewafter)
+					{
 						// Less than a month left, we need to renew.
 						print_r("Renewing certificate for: " . $d . "...");
 						$needsgen = true;
@@ -106,15 +111,19 @@ function renewCertificates()
 			}
 			
 			// Do we need to generate a certificate?
-			if ($needsgen) {
-				try {
+			if ($needsgen)
+			{
+				try
+				{
 					//$le = new Analogic\ACME\Lescript($certlocation, $webroot, $logger);
 					# or without logger:
 					$le = new Analogic\ACME\Lescript($certlocation, $webroot);
 					$le->initAccount();
 					$le->signDomains(array($domain));
 			
-				} catch (\Exception $e) {
+				}
+				catch (\Exception $e)
+				{
 					print_r("ERROR!");
 					$logger->error($e->getMessage());
 					$logger->error($e->getTraceAsString());
@@ -127,7 +136,8 @@ function renewCertificates()
 			// and save it as domain.name.pem for easy reference. It doesn't
 			// matter that this is updated each time, as it'll be exactly
 			// the same. 
-			foreach ($domains as $d) {
+			foreach ($domains as $d)
+			{
 				//$pem = file_get_contents("$certlocation/$d/fullchain.pem")."\n".file_get_contents("$certlocation/$d/private.pem");
 				$pem = file_get_contents("$certlocation/fullchain.pem")."\n".file_get_contents("$certlocation/private.pem");
 				file_put_contents("$certlocation/$d.pem", $pem);
