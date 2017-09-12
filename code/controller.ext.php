@@ -208,6 +208,7 @@ class module_controller extends ctrl_module
 		$domain_folder = str_replace(".","_", $domain);
 		$domain_folder = str_replace("www.","", $domain_folder);
 		$username = $currentuser['username'];
+		
 		$webroot = "/var/sentora/hostdata/".$username."/public_html/".$domain_folder;
 
 // start Lescript		
@@ -234,8 +235,8 @@ class module_controller extends ctrl_module
 		{
 			$le = new Analogic\ACME\Lescript($certlocation, $webroot, $logger);
 			
-			// for later inclusion - use client's email used during registration
-			// $le->contact = array('mailto:test@test.com'); // optional
+			// uses client's email used during registration
+			$le->contact = array('mailto:' . $currentuser['email']); // optional
 			
 			$le->initAccount();
 			$le->signDomains(array($domain));
@@ -327,6 +328,7 @@ class module_controller extends ctrl_module
 		$numrows = $zdbh->prepare($sql);
 		$numrows->bindParam(':userid', $currentuser['userid']);
 		$numrows->execute();
+
 		if ($numrows->fetchColumn() <> 0)
 		{
 			$sql = $zdbh->prepare($sql);
