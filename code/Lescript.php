@@ -17,7 +17,6 @@ class Lescript
     public $state = "Massachusetts";
     public $challenge = 'http-01'; // http-01 challenge only
     public $contact = array(); // optional
-    //public $contact = array("mailto:postmaster@".$domain);
 
     private $certificatesDir;
     private $webRootDir;
@@ -41,21 +40,16 @@ class Lescript
     {
         if (!is_file($this->accountKeyPath))
 		{
-
             // generate and save new private key for account
             // ---------------------------------------------
-
             printf('Starting new account registration');
             $this->generateKey(dirname($this->accountKeyPath));
             $this->postNewReg();
             printf('New account certificate registered');
-
         }
 		else
 		{
-
             printf('Account already registered. Continuing.');
-
         }
     }
 
@@ -71,7 +65,6 @@ class Lescript
 
         // start domains authentication
         // ----------------------------
-
         foreach ($domains as $domain)
 		{
             // 1. getting available authentication options
@@ -290,10 +283,7 @@ class Lescript
 		{
             $data['contact'] = $this->contact;
         }
-        return $this->signedRequest(
-            '/acme/new-reg',
-            $data
-        );
+        return $this->signedRequest('/acme/new-reg', $data);
     }
 
     //private function generateCSR($privateKey, array $domains)
