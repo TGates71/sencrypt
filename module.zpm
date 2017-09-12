@@ -80,7 +80,7 @@
 <% else %>
     <div class="zgrid_wrapper">
         <h3><: Create A Free SSL Certificate :></h3>
-		You have no Domains or Sub Domains active on this account.
+		You have no Domains or Sub Domains active on this account OR all your Domains or Sub Domains already have certificates.
 	</div>
 <% endif %>
 <p>&nbsp;</p>
