@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <updateserver>
-	<latestversion>002</latestversion>
+	<latestversion>200</latestversion>
 	<downloadurl>http://zppy-repo.mach-hosting.com/testing/sencrypt.zpp</downloadurl>
 	<desc>Add, revoke or delete Let's Encrypt FREE! SSL certificates for your domains and sub domains.</desc>
 	<updatedesc>Still in development - testing renewals</updatedesc>

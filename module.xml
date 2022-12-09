@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <module>
     <name>Sencrypt</name>
-    <version>002</version>
+    <version>200</version>
     <defaultcat>Domain Management</defaultcat>
-	<type>user</type>
-	<ostype>lin</ostype>
-    <desc>Add, revoke or delete Let's Encrypt FREE! SSL certificates for your domains and sub domains.</desc>
-    <authorname>TGates</authorname>
-    <authoremail>tgates@sentora.org</authoremail>
-    <authorurl>http://www.sentora.org/</authorurl>
-    <updateurl>http://zppy-repo.mach-hosting.com/testing/sencrypt.zpp</updateurl>
+    <desc>Sencrypt is a SSL module to Add/Manage SSL certificates for Letsencrypt or Third-party SSL Request(s)/Setup for your domains.</desc>
+    <authorname>Jettaman</authorname>
+    <authoremail>anthony@sentora.org</authoremail>
+    <authorurl>sentora.org</authorurl>
+    <updateurl>repo.senotora.org</updateurl>
 </module>
