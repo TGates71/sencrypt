@@ -1,0 +1,10 @@
+add cron job:
+exec('echo -e "`crontab -l`\n30 9 * * * /path/to/script" | crontab -');
+
+One exec to create certificate:
+exec(certbot certonly --webroot --email $email_address -w $domain_path -d $domain_name -d www.$domain_name);
+
+exec to add cron job:
+0 */12 * * * root test -x /usr/bin/certbot -a \! -d /run/systemd/system && perl -e 'sleep int(rand(3600))' && certbot -q renew
+
+exec('echo -e "`crontab -l`\n30 0 */12 * * * root test -x /usr/bin/certbot -a \! -d /run/systemd/system && perl -e 'sleep int(rand(3600))' && certbot -q renew" | crontab -');
