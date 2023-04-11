@@ -3,7 +3,7 @@
     <name>Sencrypt</name>
     <version>210</version>
     <defaultcat>Domain Management</defaultcat>
-    <desc>Sencrypt is a SSL module to Add/Manage SSL certificates for Letsencrypt or Third-party SSL Request(s)/Setup for your domains.</desc>
+    <desc>Sencrypt is a module that adds and manages SSL certificates from Letsencrypt or other Third-party providers to encrypt your domain's connections.</desc>
     <authorname>TGates</authorname>
     <authoremail>tgates@sentora.org</authoremail>
     <authorurl>sentora.org</authorurl>

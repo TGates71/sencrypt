@@ -40,7 +40,15 @@ class module_controller extends ctrl_module {
 	}
 
 # Module & Dispaly stuff - START
+   /* Load CSS and JS files */
+    static function getInit()
+	{
+        global $controller;
+        
+        $styles = '<link rel="stylesheet" type="text/css" href="modules/' . $controller->GetControllerRequest('URL', 'module') . '/assets/style.css">';
 
+        return $styles;
+    }
 	static function getShowLetsEncryptTab() {
 		if (isset($_GET['ShowPanel']) == true ) {
 			if ($_GET['ShowPanel'] == 'letsencrypt') {
@@ -113,7 +121,7 @@ class module_controller extends ctrl_module {
 		
 		# Check if Panel ssl folder exists - This file should have been created during install.
 		# Check if cert exist or not
-		if ( is_file( $panelCertPath . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/cert.pem" ) ) {	
+		if (is_file($panelCertPath . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/cert.pem" ) ) {	
 			$panelDeleteButton = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=DeletePanelSSL" method="post">
 			<input type="hidden" name="inName" value="'. $panelDomain.'">
 			<button class="button-loader btn btn-warning" type="submit" id="button" name="inDeleteSSL" id="inDeletePanelSSL" value="inDeletePanelSSL">Delete</button>
@@ -127,22 +135,21 @@ class module_controller extends ctrl_module {
 			$reNewDay = $panelday - 30;
 			$sslvendor = "Let's Encrypt";
 			
-			if($panelday <= "-1700") {
+			if ($panelday <= "-1700") {
 				$paneldays = "Not initialized yet";
-				} else {
+			} else {
 				$paneldays = "Expiry in " . $panelday . " days - Auto-renewal in " . $reNewDay . " Days.";
 			}
-			
 			# Revoke button just incase its needed
 			$panelRevokeButton = '<form action="./?module=sencrypt&action=RevokePanelSSL" method="post">
 				<input type="hidden" name="inDomain" value="'. $panelDomain.'">
 				<button class="button-loader btn btn-danger" type="submit" id="button" name="inRevokeSSL" id="inRevokePanelSSL" value="inRevokePanelSSL">Revoke</button>
 			</form>';
 		
-			$panelres[] = array('Active_Panel_Domain' => $panelDomain, 'Vendor_AC' => $sslvendor, 'Active_Panel_Days' =>  $paneldays, 'Active_Panel_Button' => $panelDeleteButton,  'Active_Panel_Revoke' => $panelRevokeButton);
+			$panelres[] = array('Active_Panel_Domain' => $panelDomain, 'Active_Panel_Providor' => $sslvendor, 'Active_Panel_Days' =>  $paneldays, 'Active_Panel_Button' => $panelDeleteButton,  'Active_Panel_Revoke' => $panelRevokeButton);
 		
 		# If third party ssl show
-		} elseif ( is_dir( $panelCertPath . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panelDomain . "/" ) ) {
+		} elseif (is_dir($panelCertPath . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panelDomain . "/" ) ) {
 						
 			$panelDeleteButton = '<form action="./?module=sencrypt&ShowPanel=third_party&action=TPDelete" method="post">
 			<input type="hidden" name="inName" value="'. $panelDomain.'">
@@ -158,31 +165,25 @@ class module_controller extends ctrl_module {
 			$sslvendor = "Third Party";
 			
 			if($panelday <= "-1700") {
-				$paneldays = "Not initialized yet"; } else {
+				$paneldays = "Not initialized yet";
+			} else {
 				$paneldays = "Expiry in " . $panelday . " days.";
 			}
-		
 			$panelres[] = array('Active_Panel_Domain' => $panelDomain, 'Active_Panel_Providor' => $sslvendor, 'Active_Panel_Days' =>  $paneldays, 'Active_Panel_Button' => $panelDeleteButton, 'Active_Panel_Revoke' => NULL);
-		
 		} else {
-
 			$panelres[] = array('Active_Panel_Domain' => "No active panel domain certificates", 'Active_Panel_Providor' => NULL, 'Active_Panel_Days' =>  NULL, 'Active_Panel_Button' => NULL, 'Active_Panel_Revoke' => NULL);
-			
 		}
 		return $panelres;
-		
 	}
 
 	static function Show_Panel_Domains() {
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail();
 		$panelDomain = ctrl_options::GetSystemOption('sentora_domain');
-		
-		# Check if certs already exisst on system	
-		if ( !is_dir( ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panelDomain . "/") ) {
-					
-			if ( !is_dir( ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrpyt/" . $panelDomain . "/") ) {
-				# do nothing cert exists
+#-tg
+		# Check if certs already exist on system	
+		if ((!is_dir( ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panelDomain . "/")) && (!is_dir( ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/"))) {
+				# show domain if not exist
 				$panelbutton = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=MakePanelSSL" method="post">
 				<input type="hidden" name="inDomain" value="'. $panelDomain.'">
 				<button class="button-loader btn btn-primary" type="submit" id="button" name="in" id="inMakePanelSSL" value="inMakePanelSSL">Encrypt</button>
@@ -190,15 +191,9 @@ class module_controller extends ctrl_module {
 				$paneldays = "";
 				
 				$panelres[] = array('Panel_Domain' => $panelDomain, 'Panel_Button' => $panelbutton, 'Panel_Days' =>  $paneldays);
-				
-			}
-		
 		} else {
-	
-			$panelres[] = array('Panel_Domain' => "<h4 style='color:red;'>All panel domains have active SSL certificates. Please see active cert's above.<h4>", 'Vendor_AC' => NULL, 'Panel_Days' =>  NULL, 'Panel_Button' => NULL,  'Panel_Revoke' => NULL);			
-		
+			$panelres[] = array('Panel_Domain' => "<h4 style='color:red;'>All panel domains have active SSL certificates. Please see active cert's above.<h4>", 'Vendor_AC' => NULL, 'Panel_Days' =>  NULL, 'Panel_Button' => NULL,  'Panel_Revoke' => NULL);
 		}
-		
 		return $panelres;
 	}
 	# panel ssl show - END
@@ -213,7 +208,7 @@ static function Show_list_of_domains() {
 		global $zdbh, $controller;
         $currentuser = ctrl_users::GetUserDetail();
 		
-		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
+		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL AND vh_ssl_tx is NULL ORDER BY vh_name_vc ASC";
         $numrows = $zdbh->prepare($sql);
         $numrows->bindParam(':userid', $currentuser['userid']);
         $numrows->execute();
@@ -224,34 +219,22 @@ static function Show_list_of_domains() {
             $sql->execute();
             while ($rowdomains = $sql->fetch()) {
 			# Check if folder ssl exists
-				if (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/") ) {
-					fs_director::CreateDirectory( ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/" );
-				}
-				
-			# Check if cert exist or not
-				if (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/". $rowdomains['vh_name_vc'] ."/") ) {
+			# tg if it doesnt exist, why create it?
+				/*if (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/") ) { 
+					fs_director::CreateDirectory(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/");
+				}*/
+				if ((!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/". $rowdomains['vh_name_vc'] ."/")) || (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/third_party/". $rowdomains['vh_name_vc'] ."/"))) {
 
-					# Check if ssl exists else where
-					if ( is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/third_party/". $rowdomains['vh_name_vc'] ."/") ) {
+					$button = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=MakeSSL" method="post">
+						<input type="hidden" name="inDomain" value="'.$rowdomains['vh_name_vc'].'">
+						<button class="button-loader btn btn-primary" type="submit" id="button" name="in" id="inMakeSSL" value="inMakeSSL">Encrypt</button>
+					</form>';
+					$days = "";
 
-						# Do nothing
-
-					} else {
-
-						//$button = '<form action="./?module=sencrypt&action=MakeSSL" method="post">
-						$button = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=MakeSSL" method="post">
-							<input type="hidden" name="inDomain" value="'.$rowdomains['vh_name_vc'].'">
-							<button class="button-loader btn btn-primary" type="submit" id="button" name="in" id="inMakeSSL" value="inMakeSSL">Encrypt</button>
-						</form>';
-						$days = "";
-						
-						$res[] = array('Domain' => $rowdomains['vh_name_vc'], 'Button' => $button, 'Days' =>  $days);
-						
-					}
-					
+					$res[] = array('Domain_AC' => $rowdomains['vh_name_vc'], 'Button_AC' => $button, 'Vendor_AC' => NULL, 'Days_AC' =>  $days, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
 				} else {
 				
-				//if ( is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/". $rowdomains['vh_name_vc'] ."/") ) {
+				//if (is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/". $rowdomains['vh_name_vc'] ."/") ) {
 					
 					/*
 					$button = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=Delete" method="post">
@@ -280,17 +263,15 @@ static function Show_list_of_domains() {
 					
 					$res[] = array('Domain' => $rowdomains['vh_name_vc'], 'Button' => $button, 'Days' =>  $days, 'Revoke' => $RevokeButton);
 					*/
+					$res[] = array('Domain_AC' => "No active domain certificates", 'Button_AC' => NULL, 'Vendor_AC' => NULL, 'Days_AC' =>  NULL, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
 				}
 				
 				# OLD CODE
 				//$res[] = array('Domain' => $rowdomains['vh_name_vc'], 'Button' => $button, 'Days' =>  $days, 'Revoke' => $RevokeButton);
 				# TESTING
-				$res[] = array('Domain_AC' => "No active domain certificates", 'Button_AC' => NULL, 'Vendor_AC' => NULL, 'Days_AC' =>  NULL, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
-
+				//$res[] = array('Domain_AC' => "No active domain certificates", 'Button_AC' => NULL, 'Vendor_AC' => NULL, 'Days_AC' =>  NULL, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
 			}
-
 			return $res;
-			
 		} else {		
 			return false;
 		}
@@ -306,11 +287,9 @@ static function Show_list_of_domains() {
 		global $zdbh, $controller;
 	    $currentuser = ctrl_users::GetUserDetail();
 		$panelDomain = ctrl_options::GetSystemOption('sentora_domain');
-		
-		# NEW CODE
 	
 		# Show Sentora panel SSLs certs
-		if ( is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/cert.pem" ) ) {
+		if (is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/cert.pem" ) ) {
 							
 			$button = '<form action="./?module=sencrypt&ShowPanel=third-party&action=# method="post">
 				<input type="hidden" name="inName" value="' . $panelDomain . '">
@@ -342,8 +321,6 @@ static function Show_list_of_domains() {
 			$res[] = array('Domain_AC' => $panelDomain, 'Button_AC' => $button, 'Vendor_AC' => $sslvendor, 'Days_AC' =>  $days, 'Download_AC' => $Downloadbutton, 'Revoke_AC' => NULL );					
 					
 		}
-	
-# NEW CODE
 
 		# Show Client SSL certs
 		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
@@ -362,7 +339,7 @@ static function Show_list_of_domains() {
 				}
 				
 				# If Third Party Vhost cert	
-				if ( is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $rowdomains['vh_name_vc'] . "/cert.pem" ) ) {
+				if (is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $rowdomains['vh_name_vc'] . "/cert.pem" ) ) {
 	
 					$button = '<form action="./?module=sencrypt&ShowPanel=third-party&action=TPDelete" method="post">
 						<input type="hidden" name="inName" value="'. $rowdomains['vh_name_vc'] .'">
@@ -395,7 +372,7 @@ static function Show_list_of_domains() {
 				
 				
 				# If Letsencrypt cert	
-				} elseif ( is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $rowdomains['vh_name_vc'] . "/cert.pem" ) ) {
+				} elseif (is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $rowdomains['vh_name_vc'] . "/cert.pem" ) ) {
 					
 					$button = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=Delete" method="post">
 						<input type="hidden" name="inDomain" value="'. $rowdomains['vh_name_vc'].'">
@@ -593,13 +570,13 @@ static function Show_list_of_domains() {
 			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 
 			# If Letsencrypt or purchased SSL
-			if ( $sub_module == "letsencrypt" ) {
+			if ($sub_module == "letsencrypt" ) {
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/chain.pem" . fs_filehandler::NewLine();
 				
-			} elseif ( $sub_module == "third_party" ) {
+			} elseif ($sub_module == "third_party" ) {
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/intermediate.crt". fs_filehandler::NewLine();
 				
-			} elseif ( $sub_module == "self_signed" ) {
+			} elseif ($sub_module == "self_signed" ) {
 				# self signed - DO NOthing
 			}
 
@@ -676,13 +653,13 @@ static function Show_list_of_domains() {
 			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 			
 			# If Letsencrypt or purchased SSL
-			if ( $sub_module == "letsencrypt" ) {
+			if ($sub_module == "letsencrypt" ) {
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/chain.pem" . fs_filehandler::NewLine();
 				
-			} elseif ( $sub_module == "third_party" ) {
+			} elseif ($sub_module == "third_party" ) {
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/intermediate.crt". fs_filehandler::NewLine();
 				
-			} elseif ( $sub_module == "self_signed" ) {
+			} elseif ($sub_module == "self_signed" ) {
 				# self signed - DO NOthing
 			}
 			
@@ -969,7 +946,7 @@ static function Show_list_of_domains() {
 		openssl_x509_export_to_file($sscert, ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $domain . "/cert.pem");
 		openssl_pkey_export_to_file($privkey, ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $domain . "/private.pem");	
 		
-		if ( $domain == ctrl_options::GetSystemOption('sentora_domain') ) {
+		if ($domain == ctrl_options::GetSystemOption('sentora_domain') ) {
 					
 			$line = "# Made from Sencrypt - third_party - start" . fs_filehandler::NewLine();
 			$line .= fs_filehandler::NewLine();
@@ -1106,7 +1083,7 @@ static function Show_list_of_domains() {
 			if ( !is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panel_Domain . "/") ) {
 			
 				# check if cert exist or not
-				if ( is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panel_Domain . "/") ) {
+				if (is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panel_Domain . "/") ) {
 					# Do nothing
 
 				} else {
@@ -1127,7 +1104,7 @@ static function Show_list_of_domains() {
 				if (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $rowdomains['vh_name_vc'] . "/") ) {
 
 					# Check if ssl exists else where
-					if ( is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $rowdomains['vh_name_vc'] . "/") ) {
+					if (is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $rowdomains['vh_name_vc'] . "/") ) {
 						# Do nothing
 
 					} else {
@@ -1272,11 +1249,10 @@ static function Show_list_of_domains() {
 			$countryCode = $ip_array->countryCode; 
 			$state = $ip_array->regionName;
 			
-			# Make Let´s encrypt SSL
 			$logger = new Logger();
 			
+			# Make Let´s encrypt SSL
 			try {
-
 				$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger, $countryCode, $state);
 				
 				# uses client's email used during registration
@@ -1392,6 +1368,7 @@ static function Show_list_of_domains() {
 			$certlocation = $accountDir . $panelDomain . "/";
 
 			require("modules/sencrypt/code/Lescript.php");
+			date_default_timezone_set("UTC");
 			
 			# NEW CODE - tg - Set country/location data
 			$user_ip = $_SERVER['REMOTE_ADDR'];
@@ -1399,10 +1376,10 @@ static function Show_list_of_domains() {
 			$ip_array = json_decode($ip_response);
 			$countryCode = $ip_array->countryCode; 
 			$state = $ip_array->regionName;
+
+			$logger = new Logger();
 			
 			# Make Let´s encrypt SSL
-			$logger = new Logger();
-
 			try {
 				$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger, $countryCode, $state);
 				
@@ -1659,18 +1636,24 @@ static function Show_list_of_domains() {
 
 			# Convert PEM cert to DER format base64url for revoke
 			# tg
-			$pem_data = file_get_contents($certlocation . $domain . "/cert.pem");
+			$pem_data = file_get_contents($certlocation . "/cert.pem");
 			$pem2der = self::base64url(self::pem2der($pem_data));
 			
-
 			require("modules/sencrypt/code/Lescript.php");
 			date_default_timezone_set("UTC");
+			
+			# NEW CODE - tg - Set country/location data
+			$user_ip = $_SERVER['REMOTE_ADDR'];
+			$ip_response = file_get_contents('http://ip-api.com/json/'.$user_ip);
+			$ip_array = json_decode($ip_response);
+			$countryCode = $ip_array->countryCode; 
+			$state = $ip_array->regionName;
 			
 			$logger = new Logger();
 			
 			# Revoke Let´s encrypt SSL
 			try {
-				$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger);
+				$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger, $countryCode, $state);
 				
 				# uses client's email used during registration
 				//$le->contact = array('mailto:' . $currentuser['email']); // optional
@@ -1774,7 +1757,7 @@ static function Show_list_of_domains() {
 	}
 
     static function getDonation() {
-        $donation = '<form action="https://www.paypal.com/donate" method="post" target="_top">
+        $donation = '<br />Donate to module developer: <form action="https://www.paypal.com/donate" method="post" target="_blank">
 <input type="hidden" name="hosted_button_id" value="MCDRPGAZFNEMY" />
 <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" height="25" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
 <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1" />
@@ -1785,7 +1768,7 @@ static function Show_list_of_domains() {
 	
     static function getCopyright() {
 		
-        $copyright = '<font face="ariel" size="2">'.ui_module::GetModuleName().' v2.0.0 &copy; 2016-'.date("Y").' by <a target="_blank" href="#">TGates, Jettaman & Diablo</a> for <a target="_blank" href="http://sentora.org">Sentora Control Panel</a>&nbsp;&#8212;&nbsp;Help support future development of this module and donate today!</font>';
+        $copyright = '<font face="ariel" size="2">'.ui_module::GetModuleName().' v2.1.0 &copy; 2016-'.date("Y").' by <a target="_blank" href="#">TGates, Jettaman & Diablo</a> for <a target="_blank" href="http://sentora.org">Sentora Control Panel</a>&nbsp;&#8212;&nbsp;Help support future development of this module and donate today!</font>';
 		
         return $copyright;
     }
@@ -1840,7 +1823,6 @@ static function Show_list_of_domains() {
 			# @ToDo check DNS
 			return (in_array('ns1.' . $domain, $nameservers) && in_array('ns2.' . $domain, $nameservers));
 		}
-	
 
 	static function getResult() {
 		if (self::$modReqsError)

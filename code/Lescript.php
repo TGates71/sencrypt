@@ -7,8 +7,8 @@ use \Psr\Log\LoggerInterface;
 
 class Lescript
 {
-    //public $ca = 'https://acme-v02.api.letsencrypt.org'; // PRODUCTION ONLY
-    public $ca = 'https://acme-staging-v02.api.letsencrypt.org'; // TESTING ONLY!!!!!
+    public $ca = 'https://acme-v02.api.letsencrypt.org'; // PRODUCTION ONLY
+    //public $ca = 'https://acme-staging-v02.api.letsencrypt.org'; // TESTING ONLY!!!!!
     public $countryCode;
     public $state;
     public $challenge = 'http-01'; # http-01 challange only
@@ -148,8 +148,8 @@ class Lescript
 
             $this->log("Token for $domain saved at $tokenPath and should be available at $uri");
 
-            # simple self check - fails!
-            //tg if ($payload !== trim(@file_get_contents($uri))) {
+            # simple self check - fails! - removed - tg
+            // if ($payload !== trim(@file_get_contents($uri))) {
             //    throw new RuntimeException("Please check $uri - token not available");
             //}
 
@@ -432,9 +432,6 @@ keyUsage = nonRepudiation, digitalSignature, keyEncipherment');
         }
     }
 	
-	################################################################### 
-	
-	
 	public function postUpdateRegEmail()
     {
 
@@ -503,7 +500,6 @@ keyUsage = nonRepudiation, digitalSignature, keyEncipherment');
         return $this->client->post($uri, json_encode($data));
 		
 		//$this->log("Request accepted. Email Updated.");
-		
     }
 	
 	
