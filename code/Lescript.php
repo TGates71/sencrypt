@@ -13,7 +13,7 @@ class Lescript
     public $state;
     public $challenge = 'http-01'; # http-01 challange only
     public $contact = array(); # optional
-
+	public $clientUserAgent = "analogic-lescript/0.3.0";
     private $certificatesDir;
     private $webRootDir;
 
@@ -37,7 +37,7 @@ class Lescript
         $this->logger = $logger;
 		$this->countryCode = $countryCode;
 		$this->state = $state;
-        $this->client = $client ? $client : new Client($this->ca);
+        $this->client = $client ? $client : new Client($this->ca, $this->clientUserAgent);
         $this->accountKeyPath = $accountDir . '_account/private.pem';
     }
 
@@ -68,6 +68,7 @@ class Lescript
 
     public function initCommunication()
     {
+        $this->log('ACME Client: '.$this->clientUserAgent);
         $this->log('Getting list of URLs for API');
 
         $directory = $this->client->get('/directory');
