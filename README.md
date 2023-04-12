@@ -1,4 +1,4 @@
-# Sencrypt - Released
-SSL Certificate Manager module for use with Sentora Control Panel (http://sentora.org/). Manage free Let's Encrypt and other 3rd-party SSL certificates with Sentora.  My Sentora ZPPY repository: https://zppy-repo.mach-hosting.com/repo/
+# Sencrypt - A work in progress - not released
+Let's Encrypt module for use with Sentora Control Panel (http://sentora.org/). Manage Let's Encrypt SSL certificates with Sentora.  My Sentora ZPPY repository: http://zppy-repo.mach-hosting.com/
 
-Sencrypt is now a core module in Sentora v2.0.1
+Sencrypt testing repo: zppy-repo.mach-hosting.com/testing
