@@ -1,5 +1,5 @@
 <?php
-/*
+/**
 	* Controller for sencrypt module for sentora version 2.0.0
 	* Version : 3.0.0
 	* Author : TGates
@@ -18,37 +18,36 @@ class Logger {
 
 class module_controller extends ctrl_module {
 	
-	static $ok;
+	static $okletsencrypt;
+	static $okselfsigned;
+	static $okthirdparty;
 	static $delok;
 	static $error;
 	static $dnsInvalid;
 	static $modReqsError;
+	static $portReqsError;
 	static $revokecert;
 	static $keyadd;
+	static $certFailed;
 	//static $loggererror;
 	
-	# For LEscript you can use any logger according to Psr\Log\LoggerInterface
-	//function __call($name, $arguments) {
-		//echo date('Y-m-d H:i:s')." [$name] ${arguments[0]}\n";
-	//}
-	
 	static function getCheckModReq() {
-		# Need to rewrite to be friendly and throw sentora error instead of DIE error --- #### Need to fix ASAP
-		if (!defined("PHP_VERSION_ID") || PHP_VERSION_ID < 50300 || !extension_loaded('openssl') || !extension_loaded('curl')) {
+		# Post message if PHP requirments are not met 
+		if (!defined("PHP_VERSION_ID") || PHP_VERSION_ID < 50500 || !extension_loaded('openssl') || !extension_loaded('curl')) {
 			self::$modReqsError = true;
 		}
 	}
 
-# Module & Dispaly stuff - START
-   /* Load CSS and JS files */
-    static function getInit()
-	{
-        global $controller;
-        
-        $styles = '<link rel="stylesheet" type="text/css" href="modules/' . $controller->GetControllerRequest('URL', 'module') . '/assets/style.css">';
+	static function getCheckPortReq() {
+		# Post message if port 443 appears to be not open. Using external source to detect. Sentora check port API.
+		$portquery = file_get_contents('http://api.sentora.org/portcheck.txt/?port=443');
+		if ((sys_monitoring::PortStatus(443)) && ($portquery) == false) {
+			self::$portReqsError = true;
+		}
+	}
 
-        return $styles;
-    }
+# Module & Dispaly stuff - START
+
 	static function getShowLetsEncryptTab() {
 		if (isset($_GET['ShowPanel']) == true ) {
 			if ($_GET['ShowPanel'] == 'letsencrypt') {
@@ -121,7 +120,7 @@ class module_controller extends ctrl_module {
 		
 		# Check if Panel ssl folder exists - This file should have been created during install.
 		# Check if cert exist or not
-		if (is_file($panelCertPath . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/cert.pem" ) ) {	
+		if ( is_file( $panelCertPath . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/cert.pem" ) ) {	
 			$panelDeleteButton = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=DeletePanelSSL" method="post">
 			<input type="hidden" name="inName" value="'. $panelDomain.'">
 			<button class="button-loader btn btn-warning" type="submit" id="button" name="inDeleteSSL" id="inDeletePanelSSL" value="inDeletePanelSSL">Delete</button>
@@ -133,23 +132,24 @@ class module_controller extends ctrl_module {
 			$datediff = $your_date - $now;
 			$panelday = floor($datediff / (60 * 60 * 24));
 			$reNewDay = $panelday - 30;
-			$sslvendor = "Let's Encrypt";
+			$sslvendor = "Lets Encrypt";
 			
-			if ($panelday <= "-1700") {
+			if($panelday <= "-1700") {
 				$paneldays = "Not initialized yet";
-			} else {
+				} else {
 				$paneldays = "Expiry in " . $panelday . " days - Auto-renewal in " . $reNewDay . " Days.";
 			}
+			
 			# Revoke button just incase its needed
 			$panelRevokeButton = '<form action="./?module=sencrypt&action=RevokePanelSSL" method="post">
 				<input type="hidden" name="inDomain" value="'. $panelDomain.'">
 				<button class="button-loader btn btn-danger" type="submit" id="button" name="inRevokeSSL" id="inRevokePanelSSL" value="inRevokePanelSSL">Revoke</button>
 			</form>';
 		
-			$panelres[] = array('Active_Panel_Domain' => $panelDomain, 'Active_Panel_Providor' => $sslvendor, 'Active_Panel_Days' =>  $paneldays, 'Active_Panel_Button' => $panelDeleteButton,  'Active_Panel_Revoke' => $panelRevokeButton);
+			$panelres[] = array('Active_Panel_Domain' => $panelDomain, 'Active_Panel_Provider' => $sslvendor, 'Active_Panel_Days' =>  $paneldays, 'Active_Panel_Button' => $panelDeleteButton,  'Active_Panel_Revoke' => $panelRevokeButton);
 		
 		# If third party ssl show
-		} elseif (is_dir($panelCertPath . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panelDomain . "/" ) ) {
+		} elseif ( is_dir( $panelCertPath . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panelDomain . "/" ) ) {
 						
 			$panelDeleteButton = '<form action="./?module=sencrypt&ShowPanel=third_party&action=TPDelete" method="post">
 			<input type="hidden" name="inName" value="'. $panelDomain.'">
@@ -162,38 +162,52 @@ class module_controller extends ctrl_module {
 			$datediff = $your_date - $now;
 			$panelday = floor($datediff / (60 * 60 * 24));
 			$reNewDay = $panelday - 30;
-			$sslvendor = "Third Party";
+			$sslvendor = "Third-Party";
 			
 			if($panelday <= "-1700") {
-				$paneldays = "Not initialized yet";
-			} else {
+				$paneldays = "Not initialized yet"; } else {
 				$paneldays = "Expiry in " . $panelday . " days.";
 			}
-			$panelres[] = array('Active_Panel_Domain' => $panelDomain, 'Active_Panel_Providor' => $sslvendor, 'Active_Panel_Days' =>  $paneldays, 'Active_Panel_Button' => $panelDeleteButton, 'Active_Panel_Revoke' => NULL);
+		
+			$panelres[] = array('Active_Panel_Domain' => $panelDomain, 'Active_Panel_Provider' => $sslvendor, 'Active_Panel_Days' =>  $paneldays, 'Active_Panel_Button' => $panelDeleteButton, 'Active_Panel_Revoke' => NULL);
+		
 		} else {
-			$panelres[] = array('Active_Panel_Domain' => "No active panel domain certificates", 'Active_Panel_Providor' => NULL, 'Active_Panel_Days' =>  NULL, 'Active_Panel_Button' => NULL, 'Active_Panel_Revoke' => NULL);
+
+			$panelres[] = array('Active_Panel_Domain' => "No Active Panel Domain Certificates", 'Active_Panel_Provider' => NULL, 'Active_Panel_Days' =>  NULL, 'Active_Panel_Button' => NULL, 'Active_Panel_Revoke' => NULL);
+			
 		}
 		return $panelres;
+		
 	}
 
 	static function Show_Panel_Domains() {
 		global $zdbh, $controller;
 		$currentuser = ctrl_users::GetUserDetail();
+		$panelCertPath = ctrl_options::GetSystemOption('hosted_dir');
 		$panelDomain = ctrl_options::GetSystemOption('sentora_domain');
-#-tg
-		# Check if certs already exist on system	
-		if ((!is_dir( ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panelDomain . "/")) && (!is_dir( ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/"))) {
-				# show domain if not exist
+		
+				
+		# Check if cert exist or not
+		if (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/". $panelDomain ."/") ) {
+
+			# Check if ssl exists else where
+			if ( !is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/third_party/". $panelDomain ."/") ) {
+				# do nothing cert exists
 				$panelbutton = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=MakePanelSSL" method="post">
 				<input type="hidden" name="inDomain" value="'. $panelDomain.'">
 				<button class="button-loader btn btn-primary" type="submit" id="button" name="in" id="inMakePanelSSL" value="inMakePanelSSL">Encrypt</button>
 				</form>';
 				$paneldays = "";
 				
-				$panelres[] = array('Panel_Domain' => $panelDomain, 'Panel_Button' => $panelbutton, 'Panel_Days' =>  $paneldays);
+				$panelres[] = array('Panel_Domain' => $panelDomain, 'Panel_Button' => $panelbutton);
+				
+			}
+		
 		} else {
-			$panelres[] = array('Panel_Domain' => "<h4 style='color:red;'>All panel domains have active SSL certificates. Please see active cert's above.<h4>", 'Vendor_AC' => NULL, 'Panel_Days' =>  NULL, 'Panel_Button' => NULL,  'Panel_Revoke' => NULL);
+	
+			$panelres[] = array('Panel_Domain' => "<h5 style='color:red;'>All panel domains have active SSL certificates.<h5>", 'Panel_Button' => NULL);			
 		}
+		
 		return $panelres;
 	}
 	# panel ssl show - END
@@ -204,11 +218,11 @@ class module_controller extends ctrl_module {
 		return self::Show_list_of_domains($currentuser['userid']);
 	}
 
-static function Show_list_of_domains() {
+	static function Show_list_of_domains() {
 		global $zdbh, $controller;
         $currentuser = ctrl_users::GetUserDetail();
 		
-		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL AND vh_ssl_tx is NULL ORDER BY vh_name_vc ASC";
+		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
         $numrows = $zdbh->prepare($sql);
         $numrows->bindParam(':userid', $currentuser['userid']);
         $numrows->execute();
@@ -218,66 +232,40 @@ static function Show_list_of_domains() {
             $res = array();
             $sql->execute();
             while ($rowdomains = $sql->fetch()) {
-			# Check if folder ssl exists
-			# tg if it doesnt exist, why create it?
-				/*if (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/") ) { 
-					fs_director::CreateDirectory(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/");
-				}*/
-				if ((!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/". $rowdomains['vh_name_vc'] ."/")) || (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/third_party/". $rowdomains['vh_name_vc'] ."/"))) {
-
-					$button = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=MakeSSL" method="post">
-						<input type="hidden" name="inDomain" value="'.$rowdomains['vh_name_vc'].'">
-						<button class="button-loader btn btn-primary" type="submit" id="button" name="in" id="inMakeSSL" value="inMakeSSL">Encrypt</button>
-					</form>';
-					$days = "";
-
-					$res[] = array('Domain_AC' => $rowdomains['vh_name_vc'], 'Button_AC' => $button, 'Vendor_AC' => NULL, 'Days_AC' =>  $days, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
-				} else {
-				
-				//if (is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/". $rowdomains['vh_name_vc'] ."/") ) {
-					
-					/*
-					$button = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=Delete" method="post">
-						<input type="hidden" name="inDomain" value="'.$rowdomains['vh_name_vc'].'">
-						<button class="button-loader btn btn-warning" type="submit" id="button" name="inDeleteSSL" id="inDeleteSSL" value="inDeleteSSL">Delete</button>
-					</form>';
-					$certinfo = openssl_x509_parse(file_get_contents(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/". $rowdomains['vh_name_vc'] ."/cert.pem"));
-					$validTo = date('Y-m-d', $certinfo["validTo_time_t"]);
-					$now = time();
-					$your_date = strtotime("$validTo");
-					$datediff = $your_date - $now;
-					$day = floor($datediff / (60 * 60 * 24));
-					
-					$reNewDay = $day - 30;
-					
-					if($day <= "-1700") {
-						$days = "Not initialized yet"; } else {
-						$days = "Expiry in ". $day . " days - Auto-renewal in " . $reNewDay . " Days.";
-					}
-					
-					# Revoke button just incase its needed
-					$RevokeButton = '<form action="./?module=sencrypt&action=RevokeSSL" method="post">
-						<input type="hidden" name="inDomain" value="'.$rowdomains['vh_name_vc'].'">
-						<button class="button-loader btn btn-warning" type="submit" id="button" name="inRevokeSSL" id="inRevokePanelSSL" value="inRevokePanelSSL" > Revoke </button>
-					</form>';
-					
-					$res[] = array('Domain' => $rowdomains['vh_name_vc'], 'Button' => $button, 'Days' =>  $days, 'Revoke' => $RevokeButton);
-					*/
-					$res[] = array('Domain_AC' => "No active domain certificates", 'Button_AC' => NULL, 'Vendor_AC' => NULL, 'Days_AC' =>  NULL, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
+				# Check if folder ssl exists
+				if (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/") ) {
+					fs_director::CreateDirectory( ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/" );
 				}
 				
-				# OLD CODE
-				//$res[] = array('Domain' => $rowdomains['vh_name_vc'], 'Button' => $button, 'Days' =>  $days, 'Revoke' => $RevokeButton);
-				# TESTING
-				//$res[] = array('Domain_AC' => "No active domain certificates", 'Button_AC' => NULL, 'Vendor_AC' => NULL, 'Days_AC' =>  NULL, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
+				# Check if cert exist or not
+				if (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/letsencrypt/". $rowdomains['vh_name_vc'] ."/") ) {
+
+					# Check if ssl exists else where
+					if ( is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] ."/ssl/sencrypt/third_party/". $rowdomains['vh_name_vc'] ."/") ) {
+
+						# Do nothing
+
+					} else {
+
+						$button = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=MakeSSL" method="post">
+							<input type="hidden" name="inDomain" value="'.$rowdomains['vh_name_vc'].'">
+							<button class="button-loader btn btn-primary" type="submit" id="button" name="in" id="inMakeSSL" value="inMakeSSL">Encrypt</button>
+						</form>';
+						
+						$res[] = array('Vh_Domain' => $rowdomains['vh_name_vc'], 'Vh_Button' => $button);
+						
+					}
+				} 	
 			}
-			return $res;
-		} else {		
-			return false;
+			
+		} else {	
+		
+			$res[] = array('Vh_Domain' => "No Active Domains. Create One to Continue.", 'Vh_Button' => NULL);
+	
 		}
+		return $res;
 	}
 
-# NEW CODE
 	static function getList_of_active_domains_ssl() {
 		$currentuser = ctrl_users::GetUserDetail();
 		return self::Show_list_of_active_domain_ssl($currentuser['userid']);
@@ -287,41 +275,7 @@ static function Show_list_of_domains() {
 		global $zdbh, $controller;
 	    $currentuser = ctrl_users::GetUserDetail();
 		$panelDomain = ctrl_options::GetSystemOption('sentora_domain');
-	
-		# Show Sentora panel SSLs certs
-		if (is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/cert.pem" ) ) {
-							
-			$button = '<form action="./?module=sencrypt&ShowPanel=third-party&action=# method="post">
-				<input type="hidden" name="inName" value="' . $panelDomain . '">
-				<button class="btn btn-warning" type="submit" id="button" name="inDelete_'. $currentuser["username"].'" id="inDelete_'. $currentuser["username"].'" value="inDelete_' . $currentuser["username"] . '">Delete</button></td>
-						 '.runtime_csfr::Token().'
-				</form>';
-					
-			$Downloadbutton = '<form action="./?module=sencrypt&ShowPanel=third-party&action=#" method="post">
-				<input type="hidden" name="inName" value="' . $panelDomain . '">
-				<button class="btn btn-primary1" type="submit" id="button" name="inDownload_'. $currentuser["username"].'" id="inDownload_'. $currentuser["username"].'" value="inDownload_'. $currentuser["username"].'">Download</button></td>
-				</form>';
-					
-			$certinfo = openssl_x509_parse(file_get_contents(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panelDomain . "/cert.pem"));
-			$validTo = date('Y-m-d', $certinfo["validTo_time_t"]);
-			$now = time();
-			$your_date = strtotime("$validTo");
-			$datediff = $your_date - $now;
-			$day = floor($datediff / (60 * 60 * 24));
-			//$sslvendor = "letsencrypt";
-			$sslvendor = "Third-party";
-					
-			$reNewDay = $day - 30;
-					
-			if($day <= "-1700") {
-				$days = "Not initialized yet"; } else {
-				$days = "Expiry in " . $day . " days ";
-			}
-							
-			$res[] = array('Domain_AC' => $panelDomain, 'Button_AC' => $button, 'Vendor_AC' => $sslvendor, 'Days_AC' =>  $days, 'Download_AC' => $Downloadbutton, 'Revoke_AC' => NULL );					
-					
-		}
-
+		
 		# Show Client SSL certs
 		$sql = "SELECT * FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
         $numrows = $zdbh->prepare($sql);
@@ -339,7 +293,7 @@ static function Show_list_of_domains() {
 				}
 				
 				# If Third Party Vhost cert	
-				if (is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $rowdomains['vh_name_vc'] . "/cert.pem" ) ) {
+				if ( is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $rowdomains['vh_name_vc'] . "/cert.pem" ) ) {
 	
 					$button = '<form action="./?module=sencrypt&ShowPanel=third-party&action=TPDelete" method="post">
 						<input type="hidden" name="inName" value="'. $rowdomains['vh_name_vc'] .'">
@@ -358,7 +312,7 @@ static function Show_list_of_domains() {
 					$your_date = strtotime("$validTo");
 					$datediff = $your_date - $now;
 					$day = floor($datediff / (60 * 60 * 24));
-					$sslvendor = "Third-party";
+					$sslvendor = "Third-Party";
 					
 					$reNewDay = $day - 30;
 					
@@ -369,10 +323,8 @@ static function Show_list_of_domains() {
 							
 					$res[] = array('Domain_AC' => $rowdomains['vh_name_vc'], 'Button_AC' => $button, 'Vendor_AC' => $sslvendor, 'Days_AC' =>  $days, 'Download_AC' => $Downloadbutton, 'Revoke_AC' => NULL );
 					
-				
-				
 				# If Letsencrypt cert	
-				} elseif (is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $rowdomains['vh_name_vc'] . "/cert.pem" ) ) {
+				} elseif ( is_file(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $rowdomains['vh_name_vc'] . "/cert.pem" ) ) {
 					
 					$button = '<form action="./?module=sencrypt&ShowPanel=letsencrypt&action=Delete" method="post">
 						<input type="hidden" name="inDomain" value="'. $rowdomains['vh_name_vc'].'">
@@ -404,19 +356,17 @@ static function Show_list_of_domains() {
 					
 				}
 			}
-			return $res;
+
+			//$res[] = array('Domain_AC' => "No Active Domain Certificates", 'Button_AC' => NULL, 'Vendor_AC' => NULL, 'Days_AC' =>  NULL, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
 			
 		} else {		
-			//return false;
-						
-			# TESTING
-			$res[] = array('Domain_AC' => "No active domain certificates", 'Button_AC' => NULL, 'Vendor_AC' => NULL, 'Days_AC' =>  NULL, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
+								
+			$res[] = array('Domain_AC' => "No Active Domain Certificates", 'Button_AC' => NULL, 'Vendor_AC' => NULL, 'Days_AC' =>  NULL, 'Download_AC' => NULL, 'Revoke_AC' => NULL);
 			
-			return $res;
 		}
+		
+		return $res;
 	}
-
-# END NEW CODE
 
 # Module & Dispaly stuff - END
 
@@ -517,6 +467,7 @@ static function Show_list_of_domains() {
 			
 			# PHP Mailer option
 			$phpmailer = new sys_email();
+			//$phpmailer->From = "info@sentora.org";
 			$phpmailer->Subject = $emailsubject;
 			$phpmailer->Body = $emailbody;
 			$phpmailer->AddAttachment(ctrl_options::GetSystemOption('hosted_dir'). $currentuser["username"] . "/ssl/sencrypt/third_party/key/" . $domain . ".key");
@@ -562,30 +513,29 @@ static function Show_list_of_domains() {
 		if($domain == ctrl_options::GetSystemOption('sentora_domain')) {
 			
 			# For Letsencrypt or third-party NON Self signed (lecrypt)
-				
 			$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
 			$line .= fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' . fs_filehandler::NewLine();
+			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
+			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
+			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
 			$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
 			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 
 			# If Letsencrypt or purchased SSL
-			if ($sub_module == "letsencrypt" ) {
+			if ( $sub_module == "letsencrypt" ) {
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/chain.pem" . fs_filehandler::NewLine();
 				
-			} elseif ($sub_module == "third_party" ) {
+			} elseif ( $sub_module == "third_party" ) {
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/intermediate.crt". fs_filehandler::NewLine();
 				
-			} elseif ($sub_module == "self_signed" ) {
+			} elseif ( $sub_module == "self_signed" ) {
 				# self signed - DO NOthing
 			}
-
-			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
-			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
+			
 			$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
 				
-# NEW CODE
+		# NEW CODE
 			if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
 				# For older Sentora support
 				$new = '';
@@ -610,17 +560,18 @@ static function Show_list_of_domains() {
 			
 			}
 		
-# For Self signed
-# NEW CODE - this should be for self signed...
+		# For Self signed
+		# NEW CODE - this should be for self signed...
 
 			$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
 			$line .= fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' . fs_filehandler::NewLine();
-			$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
 			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
 			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
+			$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/private.pem" . fs_filehandler::NewLine();
+
 			$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
 				
 			# Update Data
@@ -649,26 +600,25 @@ static function Show_list_of_domains() {
 			$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
 			$line .= fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' . fs_filehandler::NewLine();
+			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
+			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
+			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();			
 			$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
 			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 			
 			# If Letsencrypt or purchased SSL
-			if ($sub_module == "letsencrypt" ) {
+			if ( $sub_module == "letsencrypt" ) {
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/chain.pem" . fs_filehandler::NewLine();
 				
-			} elseif ($sub_module == "third_party" ) {
+			} elseif ( $sub_module == "third_party" ) {
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/intermediate.crt". fs_filehandler::NewLine();
 				
-			} elseif ($sub_module == "self_signed" ) {
+			} elseif ( $sub_module == "self_signed" ) {
 				# self signed - DO NOthing
 			}
 			
-			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
-			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
 			$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
 				
-# NEW CODE
 			if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {	
 				# For older Sentora support
 				$new = '';
@@ -698,17 +648,16 @@ static function Show_list_of_domains() {
 													
 			}
 			
-# NEW CODE
-# Self Signed 
+			# Self Signed 
 
 				$ssline = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
 				$ssline .= fs_filehandler::NewLine();
 				$ssline .= 'SSLEngine On' . fs_filehandler::NewLine();
-				$ssline .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
-				$ssline .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/private.pem" . fs_filehandler::NewLine();			
 				$ssline .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();	
 				$ssline .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-				$ssline .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
+				$ssline .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();				
+				$ssline .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
+				$ssline .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/" . $sub_module . "/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 				$ssline .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
 	
 				if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {	
@@ -783,15 +732,14 @@ static function Show_list_of_domains() {
 				$line = "# Made from Sencrypt - third_party - start" . fs_filehandler::NewLine();
 				$line  .= fs_filehandler::NewLine();
 				$line .= 'SSLEngine On' . fs_filehandler::NewLine();
+				$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();		
+				$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
+				$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();				
 				$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
 				$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/intermediate.crt". fs_filehandler::NewLine();
-				$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();		
-				$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-				$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
 				$line .= "# Made from Sencrypt - third_party - end" . fs_filehandler::NewLine();
 
-# NEW CODE
 				if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
 					# For older Sentora support
 					$sql = $zdbh->prepare("SELECT * FROM x_settings WHERE so_name_vc  = :name");
@@ -833,24 +781,22 @@ static function Show_list_of_domains() {
 						$updatesql->execute();
 						
 				}
-# NEW CODE
 
 			} else {
 				
 				$line = "# Made from Sencrypt - third_party - start" . fs_filehandler::NewLine();
 				$line .= fs_filehandler::NewLine();
                 $line .= 'SSLEngine On' . fs_filehandler::NewLine();
+				$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();	
+				$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
+				$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();			
 				$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
 				$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 				$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/intermediate.crt". fs_filehandler::NewLine();
-				$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();	
-				$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-				$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
 				$line .= "# Made from Sencrypt - third_party - end" . fs_filehandler::NewLine();
 				
 				$port = "443";
 				
-# NEW CODE
 				if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
 					# For older Sentora support
 					$portforward 	= "1";
@@ -883,10 +829,9 @@ static function Show_list_of_domains() {
 						
 				}
 			}
-# NEW CODE
 			
 			self::SetWriteApacheConfigTrue();
-			self::$ok = true;
+			self::$okthirdparty = true;
 			return true;
 	}
 
@@ -946,22 +891,21 @@ static function Show_list_of_domains() {
 		openssl_x509_export_to_file($sscert, ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $domain . "/cert.pem");
 		openssl_pkey_export_to_file($privkey, ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $domain . "/private.pem");	
 		
-		if ($domain == ctrl_options::GetSystemOption('sentora_domain') ) {
+		if ( $domain == ctrl_options::GetSystemOption('sentora_domain') ) {
 					
 			$line = "# Made from Sencrypt - third_party - start" . fs_filehandler::NewLine();
 			$line .= fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' . fs_filehandler::NewLine();
-			$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
 			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
+			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();			
+			$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 			$line .= "# Made from Sencrypt - third_party - end" . fs_filehandler::NewLine();					
 
 			$portname = "sentora_port";
 			$port = "443";
 				
-# NEW CODE
 			if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
 				# For older Sentora support
 				$name = 'global_zpcustom';
@@ -1004,23 +948,21 @@ static function Show_list_of_domains() {
 					//$updatesql->execute();
 						
 			}
-# NEW CODE
 
 		} else {
 					
 			$line = "# Made from Sencrypt - third_party - start" . fs_filehandler::NewLine();
 			$line .= fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' . fs_filehandler::NewLine();
-			$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();	
 			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
 			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
+			$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/third_party/" . $domain . "/private.pem" . fs_filehandler::NewLine();
 			$line .= "# Made from Sencrypt - third_party - end" . fs_filehandler::NewLine();
 			
-			$port 			= "443";
+			$port = "443";
 	
-# NEW CODE
 			if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
 				# For older Sentora support
 				$portforward 	= "1";								
@@ -1051,13 +993,12 @@ static function Show_list_of_domains() {
 					$sql->bindParam(':port', $port);
 					$sql->execute();
 		
-			}
-					
+			}	
 		}
-# NEW CODE
+
 			
 		self::SetWriteApacheConfigTrue();
-		self::$ok = true;	
+		self::$okselfsigned = true;	
 		return true;	
 				
 	}
@@ -1083,7 +1024,7 @@ static function Show_list_of_domains() {
 			if ( !is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $panel_Domain . "/") ) {
 			
 				# check if cert exist or not
-				if (is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panel_Domain . "/") ) {
+				if ( is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $panel_Domain . "/") ) {
 					# Do nothing
 
 				} else {
@@ -1093,7 +1034,6 @@ static function Show_list_of_domains() {
 				}
 				
 			} else {
-				
 				# Do nothing
 				
 			}
@@ -1104,7 +1044,7 @@ static function Show_list_of_domains() {
 				if (!is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/third_party/" . $rowdomains['vh_name_vc'] . "/") ) {
 
 					# Check if ssl exists else where
-					if (is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $rowdomains['vh_name_vc'] . "/") ) {
+					if ( is_dir(ctrl_options::GetSystemOption('hosted_dir') . $currentuser["username"] . "/ssl/sencrypt/letsencrypt/" . $rowdomains['vh_name_vc'] . "/") ) {
 						# Do nothing
 
 					} else {
@@ -1201,552 +1141,623 @@ static function Show_list_of_domains() {
 
 # LETS Encrypt code - START
 # Client
-		static function doMakeSSL() {
-			global $controller;
-			
-			$sub_module = "letsencrypt";
-			
-			$currentuser = ctrl_users::GetUserDetail();
-        	$formvars = $controller->GetAllControllerRequests('FORM');
-        	if (self::ExecuteMakeSSL($formvars['inDomain'], $currentuser["username"], $sub_module))
-            return true;
-		}
-# Panel		
-		static function doMakePanelSSL() {
-			global $controller;
-			
-			$sub_module = "letsencrypt";
-			
-			$currentuser = ctrl_users::GetUserDetail();
-        	$formvars = $controller->GetAllControllerRequests('FORM');
-        	if (self::ExecuteMakePanelSSL($formvars['inDomain'], $currentuser["username"], $sub_module))
-            return true;
-		}
-# make client	
-		static function ExecuteMakeSSL($domain, $username, $sub_module) {
-			global $zdbh, $controller;
-			$zsudo = ctrl_options::GetOption('zsudo');
-			$currentuser = ctrl_users::GetUserDetail();
-			$username = $currentuser["username"];
-			$userid = $currentuser["userid"];
-			$accountDir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/";
-			$certlocation = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/" . $domain;
-			# NEW CODE - tg - get hosted folder from DB (vh_directory_vc) so that challenge is in propper location
-			$sql = $zdbh->prepare("SELECT vh_directory_vc FROM x_vhosts WHERE vh_name_vc = :domain");
-				$sql->bindParam(':domain', $domain);
-				$sql->execute();
-			$domain_folder=$sql->fetchColumn();
-			//$domain_folder = str_replace(".","_", $domain);
-			$domainRoot = ctrl_options::GetSystemOption('hosted_dir') . $username . "/public_html/" . $domain_folder;
-
-			require("modules/sencrypt/code/Lescript.php");
-			date_default_timezone_set("UTC");
-			
-			# NEW CODE - tg - Set country/location data
-			$user_ip = $_SERVER['REMOTE_ADDR'];
-			$ip_response = file_get_contents('http://ip-api.com/json/'.$user_ip);
-			$ip_array = json_decode($ip_response);
-			$countryCode = $ip_array->countryCode; 
-			$state = $ip_array->regionName;
-			
-			$logger = new Logger();
-			
-			# Make Let´s encrypt SSL
-			try {
-				$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger, $countryCode, $state);
-				
-				# uses client's email used during registration
-				$le->contact = array('mailto:'. $currentuser['email']); // optional
-				
-		 		# Init. Account and update account email to keep current.
-				$le->initAccount();
-				$le->postUpdateRegEmail();
-				
-				# Start signing here
-				
-				# NEW CODE - start - tg
-				# Check if domain has a shared hostdata dir
-				$sql = "SELECT COUNT(*) FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_directory_vc=:dom_directory";
-					$query = $zdbh->prepare($sql);
-					$query->bindParam(':userid', $currentuser['userid']);
-					$query->bindParam(':dom_directory', $domain_folder);
-					$query->execute();
-				$count = $query->fetchColumn();
-				# NEW CODE - end - tg
-				
-				# Check if domain is a subdomain
-				$sql = "SELECT vh_type_in FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_name_vc=:domain AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
-					$query = $zdbh->prepare($sql);
-					$query->bindParam(':userid', $currentuser['userid']);
-					$query->bindParam(':domain', $domain);
-					$query->execute();
-			
-			    while ($row = $query->fetch()) {
-                    
-					if (($row['vh_type_in'] == 2 ) ||  ($count != 1 )) {
-						# Create domain without www. because its a subdomain
-						$le->signDomains(array($domain));
-						
-					} else {
-						# Create a SSL with www. because its a root domain
-						$le->signDomains(array($domain, 'www.'. $domain));
-						
-					}
-                }
-			}
-			catch (\Exception $e) {
-				$logger->error($e->getMessage());
-				$logger->error($e->getTraceAsString());
-				exit(1);
-			}
-
-				$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
-				$line .= fs_filehandler::NewLine();
-                $line .= 'SSLEngine On' . fs_filehandler::NewLine();
-				$line .= "SSLCertificateFile " . $certlocation . "/cert.pem" . fs_filehandler::NewLine();
-				$line .= "SSLCertificateKeyFile " . $certlocation . "/private.pem" . fs_filehandler::NewLine();
-				$line .= "SSLCACertificateFile " . $certlocation . "/chain.pem" . fs_filehandler::NewLine();
-				$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
-				$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-				$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
-				$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
-
-				$port 			= 443;
-				$portforward 	= 1;
-
-				$sql = $zdbh->prepare("SELECT * FROM x_vhosts WHERE vh_name_vc = :domain AND vh_deleted_ts IS NULL");
-            	$sql->bindParam(':domain', $domain);
-            	$sql->execute();
-				
-            	while ($row = $sql->fetch()) {
-					$olddata = $row['vh_custom_tx'];
-				}
-					$data = $olddata. $line;
-					
-					# NEW CODE
-					
-					if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
-						# For older Sentora support
-						$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx=:data, vh_custom_port_in=:port WHERE vh_name_vc = :domain");
-						//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx=:data, vh_custom_port_in=:port, vh_portforward_in=:portforward WHERE vh_name_vc = :domain");
-						$sql->bindParam(':data', $data);
-						$sql->bindParam(':port', $port);
-						$sql->bindParam(':portforward', $portforward);
-						$sql->bindParam(':domain', $domain);
-						$sql->execute();	
-						
-					} else {
-						# For Sentora 2.0
-						$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx=:data, vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
-						//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx=:data, vh_ssl_port_in=:port, vh_portforward_in=:portforward, vh_custom_port_in=:customport WHERE vh_name_vc = :domain");
-						$sql->bindParam(':data', $data);
-						$sql->bindParam(':port', $port);
-						# added portforward & custom port for forwarding- tg
-						//$sql->bindParam(':portforward', $portforward);
-						//$sql->bindParam(':customport', $port);
-						$sql->bindParam(':domain', $domain);
-						$sql->execute();			
-						
-					}
-# NEW CODE
-					self::SetWriteApacheConfigTrue();
-					self::$ok = true;
-					return true;
-		}
-# make panel
-		# Make SSL for Panel domain
-		static function ExecuteMakePanelSSL($domain, $username, $sub_module) {
-			global $zdbh, $controller;
-			$zsudo = ctrl_options::GetOption('zsudo');
-			$currentuser = ctrl_users::GetUserDetail();
-			$username = $currentuser["username"];
-			$userid = $currentuser["userid"];
-						
-			$domainRoot = ctrl_options::GetSystemOption('sentora_root');
-			$panelDomain = ctrl_options::GetSystemOption('sentora_domain');
-			$accountDir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/";
-			$certlocation = $accountDir . $panelDomain . "/";
-
-			require("modules/sencrypt/code/Lescript.php");
-			date_default_timezone_set("UTC");
-			
-			# NEW CODE - tg - Set country/location data
-			$user_ip = $_SERVER['REMOTE_ADDR'];
-			$ip_response = file_get_contents('http://ip-api.com/json/'.$ip);
-			$ip_array = json_decode($ip_response);
-			$countryCode = $ip_array->countryCode; 
-			$state = $ip_array->regionName;
-
-			$logger = new Logger();
-			
-			# Make Let´s encrypt SSL
-			try {
-				$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger, $countryCode, $state);
-				
-				# uses client's email used during registration
-				$le->contact = array('mailto:' . $currentuser['email']); // optional
-			
-				# Init. Account and update account email to keep current.
-				$le->initAccount();
-				$le->postUpdateRegEmail();
-				
-				# Sign domains
-				$le->signDomains(array($domain));
-				
-			}
-			catch (\Exception $e) {
-				$logger->error($e->getMessage());
-				$logger->error($e->getTraceAsString());
-				exit(1);
-			}
-
-				$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
-				$line .= fs_filehandler::NewLine();
-                $line .= 'SSLEngine On' . fs_filehandler::NewLine();
-				$line .= "SSLCertificateFile " . $certlocation . "cert.pem" . fs_filehandler::NewLine();
-				$line .= "SSLCertificateKeyFile " . $certlocation . "private.pem" . fs_filehandler::NewLine();
-				$line .= "SSLCACertificateFile " . $certlocation . "chain.pem" . fs_filehandler::NewLine();
-				$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
-				$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-				$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
-				$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
-
-				$port = 443;
-				
-				# new code down below
-				# Update panel Port
-				//$portname = "sentora_port";
-				//$updatesql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :value WHERE so_name_vc = :name");
-				//$updatesql->bindParam(':value', $port);
-				//$updatesql->bindParam(':name', $portname);
-				//$updatesql->execute();
+	static function doMakeSSL() {
+		global $controller;
+		
+		$sub_module = "letsencrypt";
+		
+		$currentuser = ctrl_users::GetUserDetail();
+		$formvars = $controller->GetAllControllerRequests('FORM');
+		if (self::ExecuteMakeSSL($formvars['inDomain'], $currentuser["username"], $sub_module))
+		return true;
+	}
 	
-				# MAY HAVE ISSUE HERE.
-# NEW CODE
-				if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
-					
-					# Update panel Port
-					$portname = "sentora_port";
-					$updatesql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :value WHERE so_name_vc = :name");
-					$updatesql->bindParam(':value', $port);
-					$updatesql->bindParam(':name', $portname);
-					$updatesql->execute();
-					
-					# For older Sentora support
-					# Update panel SSL data
-					$panel_so_name = "global_zpcustom";
-					$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :data WHERE so_name_vc = :panel_so_name");
-					$sql->bindParam(':data', $line);
-					$sql->bindParam(':panel_so_name', $panel_so_name);
+# Panel		
+	static function doMakePanelSSL() {
+		global $controller;
+		
+		$sub_module = "letsencrypt";
+		
+		$currentuser = ctrl_users::GetUserDetail();
+		$formvars = $controller->GetAllControllerRequests('FORM');
+		if (self::ExecuteMakePanelSSL($formvars['inDomain'], $currentuser["username"], $sub_module))
+		return true;
+	}
+
+# make client	
+	static function ExecuteMakeSSL($domain, $username, $sub_module) {
+		global $zdbh, $controller;
+		$zsudo = ctrl_options::GetOption('zsudo');
+		$currentuser = ctrl_users::GetUserDetail();
+		$username = $currentuser["username"];
+		$userid = $currentuser["userid"];
+		$accountDir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/";
+		$certlocation = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/" . $domain;
+		# NEW CODE - tg - get hosted folder from DB (vh_directory_vc) so that challenge is in propper location
+		$sql = $zdbh->prepare("SELECT vh_directory_vc FROM x_vhosts WHERE vh_name_vc = :domain");
+			$sql->bindParam(':domain', $domain);
+			$sql->execute();
+		$domain_folder=$sql->fetchColumn();
+		//$domain_folder = str_replace(".","_", $domain);
+		$domainRoot = ctrl_options::GetSystemOption('hosted_dir') . $username . "/public_html/" . $domain_folder;
+
+		require("modules/sencrypt/code/Lescript.php");
+		date_default_timezone_set("UTC");
+		
+		# Set country/state- tg & Jettaman	
+		$user_ip = ctrl_options::GetSystemOption('server_ip');
+		$ip_response = file_get_contents('http://ip-api.com/json/'.$user_ip);
+		$ip_array = json_decode($ip_response);
+		$countryCode = $ip_array->countryCode; 
+		$state = $ip_array->regionName;
+		$ipStatus = $ip_array->status;
+		$querydata = $ip_array->query;
+	
+		# Check DNS before continuing
+		if (self::checkDNSIsLive($domain, $ipStatus, $querydata, $user_ip) == false) {
+			self::$dnsInvalid = true;
+			return false;
+		}
+		
+		# Make Let´s encrypt SSL
+		$logger = new Logger();
+	
+		try {
+
+			$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger, $countryCode, $state);
+			
+			# uses client's email used during registration
+			$le->contact = array('mailto:'. $currentuser['email']); // optional
+			
+			# Init. Account and update account email to keep current.
+			$le->initAccount();
+			$le->postUpdateRegEmail();
+			
+			# Start signing here
+			
+			# NEW CODE - start - tg
+			# Check if domain has a shared hostdata dir
+			$sql = "SELECT COUNT(*) FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_directory_vc=:dom_directory";
+				$query = $zdbh->prepare($sql);
+				$query->bindParam(':userid', $currentuser['userid']);
+				$query->bindParam(':dom_directory', $domain_folder);
+				$query->execute();
+			$count = $query->fetchColumn();
+			# NEW CODE - end - tg
+			
+			# Check if domain is a subdomain
+			$sql = "SELECT vh_type_in FROM x_vhosts WHERE vh_acc_fk=:userid AND vh_name_vc=:domain AND vh_enabled_in=1 AND vh_deleted_ts IS NULL ORDER BY vh_name_vc ASC";
+				$query = $zdbh->prepare($sql);
+				$query->bindParam(':userid', $currentuser['userid']);
+				$query->bindParam(':domain', $domain);
+				$query->execute();
+		
+			while ($row = $query->fetch()) {
+				
+				if (($row['vh_type_in'] == 2 ) ||  ($count != 1 )) {
+					# Create domain without www. because its a subdomain
+					$le->signDomains(array($domain));
 					
 				} else {
-					# For Sentora 2.0
-					# Update panel Port
-					$portname = "sentora_port";
-					$updatesql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :value WHERE so_name_vc = :name");
-					$updatesql->bindParam(':value', $port);
-					$updatesql->bindParam(':name', $portname);
-					$updatesql->execute();
-
-					# update panel ssl data
-					$panel_so_name = "panel_ssl_tx";
-					$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :data WHERE so_name_vc = :panel_so_name");
-					$sql->bindParam(':data', $line);
-					$sql->bindParam(':panel_so_name', $panel_so_name);
+					# Create a SSL for domain and with www. because its a root domain
+					$le->signDomains(array($domain, 'www.'. $domain));
 					
 				}
-# NEW CODE
-
-			$sql->bindParam(':data', $line);
-			$sql->execute();
-				
-			self::SetWriteApacheConfigTrue();
-			self::$ok = true;
-			return true;
+			}			
 		}
-
-		static function doDelete() {
-	        global $controller;
-	        $currentuser = ctrl_users::GetUserDetail();
-	        $formvars = $controller->GetAllControllerRequests('FORM');
-			
-			$sub_module = "letsencrypt";
-			
-	        if (self::ExecuteTPDelete($formvars['inDomain'], $currentuser["username"], $sub_module))
-	        return true;
-		}
-/*
-		static function ExecuteDelete($domain, $username) {
-			global $zdbh;
-			global $controller;
-			$currentuser = ctrl_users::GetUserDetail();
-			$rootdir = str_replace('.', '_', $domain);
-			$dir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/" . $domain;
-			$objects = scandir($dir);
-			
-			foreach ($objects as $object) {
-				if ($object != "." && $object != "..") {
-			         unlink($dir."/" . $object);
-				}
-			}
-		
-			rmdir($dir);
 	
-			$port = NULL;
-			$new = NULL;
-	
-			$line = "# Lets Encrypt start" . fs_filehandler::NewLine();
-			$line .= fs_filehandler::NewLine();
-			$line .= 'SSLEngine On' . fs_filehandler::NewLine();
-			$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/letsencrypt/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/letsencrypt/" . $domain . "/private.pem" . fs_filehandler::NewLine();
-			$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/letsencrypt/" . $domain . "/chain.pem" . fs_filehandler::NewLine();
-			$line .= "SSLProtocol All -SSLv2 -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
-			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-			$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"" . fs_filehandler::NewLine();
-			$line .= "# Lets Encrypt end" . fs_filehandler::NewLine();
-	
-			//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx = replace(vh_ssl_tx, :data, :new), vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
-			
-			# NEW CODE
-			if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
-				# For older Sentora support
-				//$portforward 	= 1;
-				
-				$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx = replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port WHERE vh_name_vc = :domain");
-				//$sql->bindParam(':portforward', $portforward);
-				
-			} else {
-				# For Sentora 2.0
-				$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx = replace(vh_ssl_tx, :data, :new), vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
-				
-			}
-			# NEW CODE
-
-			$sql->bindParam(':data', $line);
-			$sql->bindParam(':new', $new);
-			$sql->bindParam(':domain', $domain);
-			$sql->bindParam(':port', $port);
-			$sql->execute();
-			self::SetWriteApacheConfigTrue();
-			self::$delok = true;
-			return true;
+		catch (\Exception $e) {
+			$errorCatahed = $e->getMessage();
+			$logger->error($e->getTraceAsString());
+			$logger->error($e->getMessage());
+			# Throw error and log to file
+			error_log( date('Y-m-d H:i:s') . " - DOMAIN: " . $domain . fs_filehandler::NewLine() . $errorCatahed . fs_filehandler::NewLine(), 3, ctrl_options::GetSystemOption('sentora_root') . 'modules/sencrypt/sencrypt.log');
+			self::$certFailed = true;
+			return false;
+			exit(1);
 		}
-*/
-		# Delete Panel SSL		
-		# do we need to pass panel domain since panel only uses one domain?
-		static function doDeletePanelSSL() {
-	        global $controller;
-	        $currentuser = ctrl_users::GetUserDetail();
-	        $formvars = $controller->GetAllControllerRequests('FORM');			
-	        //if (self::ExecuteDeletePanelSSL($formvars['inDomain'], $currentuser["username"]))
-			if (self::ExecuteDeletePanelSSL(ctrl_options::GetSystemOption('sentora_domain'), $currentuser["username"]))
-	        return true;
-		}
-		
-		# do we need to pass panel domain since panel only uses one domain?
-		static function ExecuteDeletePanelSSL($panelDomain, $username) {
-			global $zdbh;
-			global $controller;
-			$currentuser = ctrl_users::GetUserDetail();
-			$certlocation = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/";
-			
-			$sub_module = "letsencrypt";
-			
-			$dir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/" . $panelDomain;
-			
-			# delete cert files
-			$objects = scandir($dir);
-			foreach ($objects as $object) {
-				if ($object != "." && $object != "..") {
-			         unlink($dir."/" . $object);
-				}
-			}
-		
-			rmdir($dir);
-
-			$new = NULL;
 
 			$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
 			$line .= fs_filehandler::NewLine();
 			$line .= 'SSLEngine On' . fs_filehandler::NewLine();
-			$line .= "SSLCertificateFile " . $certlocation . $panelDomain . "/cert.pem" . fs_filehandler::NewLine();
-			$line .= "SSLCertificateKeyFile " . $certlocation . $panelDomain . "/private.pem" . fs_filehandler::NewLine();
-			$line .= "SSLCACertificateFile " . $certlocation . $panelDomain . "/chain.pem" . fs_filehandler::NewLine();
-			$line .= "SSLProtocol All -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
+			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
 			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
+			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();			
+			$line .= "SSLCertificateFile " . $certlocation . "/cert.pem" . fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile " . $certlocation . "/private.pem" . fs_filehandler::NewLine();
+			$line .= "SSLCACertificateFile " . $certlocation . "/chain.pem" . fs_filehandler::NewLine();
 			$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
-	
-# NEW CODE
+
+			$port 			= 443;
+			$portforward 	= 1;
+
+			$sql = $zdbh->prepare("SELECT * FROM x_vhosts WHERE vh_name_vc = :domain AND vh_deleted_ts IS NULL");
+			$sql->bindParam(':domain', $domain);
+			$sql->execute();
 			
+			while ($row = $sql->fetch()) {
+				$olddata = $row['vh_custom_tx'];
+			}
+				$data = $olddata. $line;
+				
+				if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
+					# For older Sentora support
+					$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx=:data, vh_custom_port_in=:port WHERE vh_name_vc = :domain");
+					//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx=:data, vh_custom_port_in=:port, vh_portforward_in=:portforward WHERE vh_name_vc = :domain");
+					$sql->bindParam(':data', $data);
+					$sql->bindParam(':port', $port);
+					$sql->bindParam(':portforward', $portforward);
+					$sql->bindParam(':domain', $domain);
+					$sql->execute();	
+					
+				} else {
+					# For Sentora 2.0
+					$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx=:data, vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
+					//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx=:data, vh_ssl_port_in=:port, vh_portforward_in=:portforward, vh_custom_port_in=:customport WHERE vh_name_vc = :domain");
+					$sql->bindParam(':data', $data);
+					$sql->bindParam(':port', $port);
+					# added portforward & custom port for forwarding- tg
+					//$sql->bindParam(':portforward', $portforward);
+					//$sql->bindParam(':customport', $port);
+					$sql->bindParam(':domain', $domain);
+					$sql->execute();			
+					
+				}
+
+				self::SetWriteApacheConfigTrue();
+				self::$okletsencrypt = true;
+				return true;
+	}
+	
+	# Make SSL for Panel domain
+	static function ExecuteMakePanelSSL($domain, $username, $sub_module) {
+		global $zdbh, $controller;
+		$zsudo = ctrl_options::GetOption('zsudo');
+		$currentuser = ctrl_users::GetUserDetail();
+		$username = $currentuser["username"];
+		$userid = $currentuser["userid"];
+					
+		$domainRoot = ctrl_options::GetSystemOption('sentora_root');
+		$panelDomain = ctrl_options::GetSystemOption('sentora_domain');
+		$accountDir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/";
+		$certlocation = $accountDir . $panelDomain . "/";
+		
+		# Other panel subomains to include
+		//$otherSubDomains = "ftp, webmail, mail, smtp, imap, pop";
+
+		require("modules/sencrypt/code/Lescript.php");
+		
+		
+		# Set country/state - tg & Jettaman
+		$user_ip = ctrl_options::GetSystemOption('server_ip');
+		$ip_response = file_get_contents('http://ip-api.com/json/'.$user_ip);
+		$ip_array = json_decode($ip_response);
+		$countryCode = $ip_array->countryCode; 
+		$state = $ip_array->regionName;
+		$ipStatus = $ip_array->status;
+		$querydata = $ip_array->query;
+		
+		# Check DNS before continuing
+		if (self::checkDNSIsLive($domain, $ipStatus, $querydata, $user_ip) == false) {
+			self::$dnsInvalid = true;
+			return false;
+		}
+		
+		# Make Let´s encrypt SSL
+		$logger = new Logger();
+
+		try {
+			$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger, $countryCode, $state);
+			
+			# uses client's email used during registration
+			$le->contact = array('mailto:' . $currentuser['email']); // optional
+		
+			# Init. Account and update account email to keep current.
+			$le->initAccount();
+			$le->postUpdateRegEmail();
+			
+			
+			# Create panel SSL if no other sub domains are listed
+			//if ($otherSubDomain == NULL ) {
+			
+				# Sign Panel domain 
+				$le->signDomains(array($domain));
+			
+
+
+			// BETA CODE TO SEE IF WE CAN CONTROL DOMAIN SUB ATL CERTS (FTP, POP, SMTP, IMAP) in works!! Might not happen! Moving to Certbot for more control.
+			/*
+			} else {
+			
+				# Checks if domain is sub or root by checking how many dots(.) there are. Returns dot(.) count
+				if (substr_count($domain, '.') == 2 ) {
+					# If panel domain is a sub domain
+					$removeNeedle = ".";
+					$pos = strpos($domain, $removeNeedle);
+					$rootDomain = substr($domain, $pos . ".");
+					
+				} else {
+					# If panel domain is a root domain
+					$rootDomain = "." . $domain;
+				
+				}
+				
+				# If other panel subdomains are listed include them in SSL cert
+				if ($otherSubDomains != NULL) {
+				 
+					$str_arr = preg_split ("/\,/", $otherSubDomains);
+					
+					# Set subdomain array
+					$subList = array("");
+					
+					# Push each subdomain domain into an array for SSL
+					foreach ($str_arr as $value) {
+						array_push($subList, ', ' . $value.$rootDomain);
+					}
+					
+					# Put list into string format for letsencrypt
+					$subFinalList = implode($subList);
+					
+				}
+				
+				# Sign panel domain plus other subdomain
+				$le->signDomains(array($domain . $subFinalList));
+				
+			}
+			*/
+			
+		}
+		catch (\Exception $e) {
+			$errorCatahed = $e->getMessage();
+			$logger->error($e->getTraceAsString());
+			$logger->error($e->getMessage());
+			# Throw error and log to file
+			error_log( date('Y-m-d H:i:s') . " - PANEL DOMAIN: " . $domain . fs_filehandler::NewLine() . $errorCatahed . fs_filehandler::NewLine(), 3, ctrl_options::GetSystemOption('sentora_root') . 'modules/sencrypt/sencrypt.log');
+			self::$certFailed = true;
+			return false;
+			exit(1);
+		}
+
+			$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
+			$line .= fs_filehandler::NewLine();
+			$line .= 'SSLEngine On' . fs_filehandler::NewLine();
+			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
+			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
+			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();			
+			$line .= "SSLCertificateFile " . $certlocation . "cert.pem" . fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile " . $certlocation . "private.pem" . fs_filehandler::NewLine();
+			$line .= "SSLCACertificateFile " . $certlocation . "chain.pem" . fs_filehandler::NewLine();
+			$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
+
+			$port = 443;
+			
+			# new code down below
+			# Update panel Port
+			//$portname = "sentora_port";
+			//$updatesql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :value WHERE so_name_vc = :name");
+			//$updatesql->bindParam(':value', $port);
+			//$updatesql->bindParam(':name', $portname);
+			//$updatesql->execute();
+
+			# MAY HAVE ISSUE HERE.
+# NEW CODE
 			if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
+				
+				# Update panel Port
+				$portname = "sentora_port";
+				$updatesql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :value WHERE so_name_vc = :name");
+				$updatesql->bindParam(':value', $port);
+				$updatesql->bindParam(':name', $portname);
+				$updatesql->execute();
+				
 				# For older Sentora support
-				$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = replace(so_value_tx, :data, :new) WHERE so_name_vc = :panel_ssl");
-				$panelssltxt = "global_zpcustom";
-				$sql->bindParam(':panel_ssl', $panelssltxt);
+				# Update panel SSL data
+				$panel_so_name = "global_zpcustom";
+				$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :data WHERE so_name_vc = :panel_so_name");
+				$sql->bindParam(':data', $line);
+				$sql->bindParam(':panel_so_name', $panel_so_name);
 				
 			} else {
 				# For Sentora 2.0
-				$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = replace(so_value_tx, :data, :new) WHERE so_name_vc = :panel_ssl");
-				$panelssltxt = "panel_ssl_tx";
-				$sql->bindParam(':panel_ssl', $panelssltxt);
+				# Update panel Port
+				$portname = "sentora_port";
+				$updatesql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :value WHERE so_name_vc = :name");
+				$updatesql->bindParam(':value', $port);
+				$updatesql->bindParam(':name', $portname);
+				$updatesql->execute();
+
+				# update panel ssl data
+				$panel_so_name = "panel_ssl_tx";
+				$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = :data WHERE so_name_vc = :panel_so_name");
+				$sql->bindParam(':data', $line);
+				$sql->bindParam(':panel_so_name', $panel_so_name);
+				
 			}
+# NEW CODE
+
+		$sql->bindParam(':data', $line);
+		$sql->execute();
+			
+		self::SetWriteApacheConfigTrue();
+		self::$okletsencrypt = true;
+		return true;
+	}
+
+	static function doDelete() {
+		global $controller;
+		$currentuser = ctrl_users::GetUserDetail();
+		$formvars = $controller->GetAllControllerRequests('FORM');
+		
+		$sub_module = "letsencrypt";
+		
+		if (self::ExecuteTPDelete($formvars['inDomain'], $currentuser["username"], $sub_module))
+		return true;
+	}
+/*
+	static function ExecuteDelete($domain, $username) {
+		global $zdbh;
+		global $controller;
+		$currentuser = ctrl_users::GetUserDetail();
+		$rootdir = str_replace('.', '_', $domain);
+		$dir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/" . $domain;
+		$objects = scandir($dir);
+		
+		foreach ($objects as $object) {
+			if ($object != "." && $object != "..") {
+				 unlink($dir."/" . $object);
+			}
+		}
+	
+		rmdir($dir);
+
+		$port = NULL;
+		$new = NULL;
+
+		$line = "# Lets Encrypt start" . fs_filehandler::NewLine();
+		$line .= fs_filehandler::NewLine();
+		$line .= 'SSLEngine On' . fs_filehandler::NewLine();
+		$line .= "SSLCertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/letsencrypt/" . $domain . "/cert.pem" . fs_filehandler::NewLine();
+		$line .= "SSLCertificateKeyFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/letsencrypt/" . $domain . "/private.pem" . fs_filehandler::NewLine();
+		$line .= "SSLCACertificateFile " . ctrl_options::GetSystemOption('hosted_dir') . $currentuser['username'] . "/ssl/sencrypt/letsencrypt/" . $domain . "/chain.pem" . fs_filehandler::NewLine();
+		$line .= "SSLProtocol All -SSLv2 -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
+		$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
+		$line .= "SSLCipherSuite \"EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+AESGCM EECDH EDH+AESGCM EDH+aRSA HIGH !MEDIUM !LOW !aNULL !eNULL !LOW !RC4 !MD5 !EXP !PSK !SRP !DSS\"" . fs_filehandler::NewLine();
+		$line .= "# Lets Encrypt end" . fs_filehandler::NewLine();
+
+		//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx = replace(vh_ssl_tx, :data, :new), vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
+		
+		# NEW CODE
+		if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
+			# For older Sentora support
+			//$portforward 	= 1;
+			
+			$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx = replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port WHERE vh_name_vc = :domain");
+			//$sql->bindParam(':portforward', $portforward);
+			
+		} else {
+			# For Sentora 2.0
+			$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx = replace(vh_ssl_tx, :data, :new), vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
+			
+		}
+		# NEW CODE
+
+		$sql->bindParam(':data', $line);
+		$sql->bindParam(':new', $new);
+		$sql->bindParam(':domain', $domain);
+		$sql->bindParam(':port', $port);
+		$sql->execute();
+		self::SetWriteApacheConfigTrue();
+		self::$delok = true;
+		return true;
+	}
+*/
+	# Delete Panel SSL		
+	# do we need to pass panel domain since panel only uses one domain?
+	static function doDeletePanelSSL() {
+		global $controller;
+		$currentuser = ctrl_users::GetUserDetail();
+		$formvars = $controller->GetAllControllerRequests('FORM');			
+		//if (self::ExecuteDeletePanelSSL($formvars['inDomain'], $currentuser["username"]))
+		if (self::ExecuteDeletePanelSSL(ctrl_options::GetSystemOption('sentora_domain'), $currentuser["username"]))
+		return true;
+	}
+	
+	# do we need to pass panel domain since panel only uses one domain?
+	static function ExecuteDeletePanelSSL($panelDomain, $username) {
+		global $zdbh;
+		global $controller;
+		$currentuser = ctrl_users::GetUserDetail();
+		$certlocation = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/";
+		
+		$sub_module = "letsencrypt";
+		
+		$dir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/" . $panelDomain;
+		
+		# delete cert files
+		$objects = scandir($dir);
+		foreach ($objects as $object) {
+			if ($object != "." && $object != "..") {
+				 unlink($dir."/" . $object);
+			}
+		}
+	
+		rmdir($dir);
+
+		$new = NULL;
+
+		$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
+		$line .= fs_filehandler::NewLine();
+		$line .= 'SSLEngine On' . fs_filehandler::NewLine();
+		$line .= "SSLProtocol All -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
+		$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
+		$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();		
+		$line .= "SSLCertificateFile " . $certlocation . $panelDomain . "/cert.pem" . fs_filehandler::NewLine();
+		$line .= "SSLCertificateKeyFile " . $certlocation . $panelDomain . "/private.pem" . fs_filehandler::NewLine();
+		$line .= "SSLCACertificateFile " . $certlocation . $panelDomain . "/chain.pem" . fs_filehandler::NewLine();
+		$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
+
+# NEW CODE
+		
+		if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
+			# For older Sentora support
+			$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = replace(so_value_tx, :data, :new) WHERE so_name_vc = :panel_ssl");
+			$panelssltxt = "global_zpcustom";
+			$sql->bindParam(':panel_ssl', $panelssltxt);
+			
+		} else {
+			# For Sentora 2.0
+			$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx = replace(so_value_tx, :data, :new) WHERE so_name_vc = :panel_ssl");
+			$panelssltxt = "panel_ssl_tx";
+			$sql->bindParam(':panel_ssl', $panelssltxt);
+		}
 
 # NEW CODE
 
-			$sql->bindParam(':data', $line);
-			$sql->bindParam(':new', $new);
-			$sql->execute();
+		$sql->bindParam(':data', $line);
+		$sql->bindParam(':new', $new);
+		$sql->execute();
+	
+		# change panel port back to 80
+		$sentora_port = 80;
+		$so_name_vc = "sentora_port";
 		
-			# change panel port back to 80
-			$sentora_port = 80;
-			$so_name_vc = "sentora_port";
+		$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx=:sentora_port WHERE so_name_vc = :so_name_vc");
+		$panelssltxt = "panel_ssl_tx";
+		$sql->bindParam(':sentora_port', $sentora_port);
+		$sql->bindParam(':so_name_vc', $so_name_vc);
+		$sql->execute();
+		
+		self::SetWriteApacheConfigTrue();
+		self::$delok = true;
+		return true;
+	}	
+
+	static function doRevokeSSL() {
+		global $controller;
+		$sub_module = "letsencrypt";
+		$currentuser = ctrl_users::GetUserDetail();
+		$formvars = $controller->GetAllControllerRequests('FORM');
+		
+		if (self::ExecuteRevokeSSL($formvars['inDomain'], $currentuser["username"], $sub_module))
+		return true;
+	}
+
+	static function ExecuteRevokeSSL($domain, $username, $sub_module) {
+		global $zdbh, $controller;
+		$zsudo = ctrl_options::GetOption('zsudo');
+		$currentuser = ctrl_users::GetUserDetail();
+		$username = $currentuser["username"];
+		$userid = $currentuser["userid"];
+		$accountDir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/";
+		$certlocation = $accountDir . $domain;
+		$domainRoot = ctrl_options::GetSystemOption('hosted_dir') . $username . "/public_html/" . $domain;
+
+		# Convert PEM cert to DER format base64url for revoke
+		# tg
+		$pem_data = file_get_contents($certlocation . $domain . "/cert.pem");
+		$pem2der = self::base64url(self::pem2der($pem_data));
+		
+
+		require("modules/sencrypt/code/Lescript.php");
+		date_default_timezone_set("UTC");
+		
+		$logger = new Logger();
+		
+		# Revoke Let´s encrypt SSL
+		try {
+			$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger);
 			
-			$sql = $zdbh->prepare("UPDATE x_settings SET so_value_tx=:sentora_port WHERE so_name_vc = :so_name_vc");
-			$panelssltxt = "panel_ssl_tx";
-			$sql->bindParam(':sentora_port', $sentora_port);
-			$sql->bindParam(':so_name_vc', $so_name_vc);
+			# uses client's email used during registration
+			//$le->contact = array('mailto:' . $currentuser['email']); // optional
+		
+			$le->initAccount();
+							
+			# start revoke
+			$le->postRevoke($pem2der);
+		}
+		
+		catch (\Exception $e) {
+			$logger->error($e->getMessage());
+			$logger->error($e->getTraceAsString());
+			exit(1);
+		}
+		
+		# Delete Letsencrypt Cert from DB & System
+		
+			$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
+			$line .= fs_filehandler::NewLine();
+			$line .= 'SSLEngine On' . fs_filehandler::NewLine();
+			$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
+			$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
+			$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
+			$line .= "SSLCertificateFile " . $certlocation . $domain . "/cert.pem" . fs_filehandler::NewLine();
+			$line .= "SSLCertificateKeyFile " . $certlocation . $domain . "/private.pem" . fs_filehandler::NewLine();
+			$line .= "SSLCACertificateFile " . $certlocation . $domain . "/chain.pem" . fs_filehandler::NewLine();
+			$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
+
+			$port 			= NULL;
+			$portforward 	= NULL;
+			$new = '';
+
+			$sql = $zdbh->prepare("SELECT * FROM x_vhosts WHERE vh_name_vc = :domain AND vh_deleted_ts IS NULL");
+			$sql->bindParam(':domain', $domain);
 			$sql->execute();
 			
-			self::SetWriteApacheConfigTrue();
-			self::$delok = true;
-			return true;
-		}	
-	
-		static function doRevokeSSL() {
-			global $controller;
-			$sub_module = "letsencrypt";
-			$currentuser = ctrl_users::GetUserDetail();
-        	$formvars = $controller->GetAllControllerRequests('FORM');
-			
-        	if (self::ExecuteRevokeSSL($formvars['inDomain'], $currentuser["username"], $sub_module))
-            return true;
-		}
-	
-		static function ExecuteRevokeSSL($domain, $username, $sub_module) {
-			global $zdbh, $controller;
-			$zsudo = ctrl_options::GetOption('zsudo');
-			$currentuser = ctrl_users::GetUserDetail();
-			$username = $currentuser["username"];
-			$userid = $currentuser["userid"];
-			$accountDir = ctrl_options::GetSystemOption('hosted_dir') . $username . "/ssl/sencrypt/letsencrypt/";
-			$certlocation = $accountDir . $domain;
-			$domainRoot = ctrl_options::GetSystemOption('hosted_dir') . $username . "/public_html/" . $domain;
-
-			# Convert PEM cert to DER format base64url for revoke
-			# tg
-			$pem_data = file_get_contents($certlocation . "/cert.pem");
-			$pem2der = self::base64url(self::pem2der($pem_data));
-			
-			require("modules/sencrypt/code/Lescript.php");
-			date_default_timezone_set("UTC");
-			
-			# NEW CODE - tg - Set country/location data
-			$user_ip = $_SERVER['REMOTE_ADDR'];
-			$ip_response = file_get_contents('http://ip-api.com/json/'.$user_ip);
-			$ip_array = json_decode($ip_response);
-			$countryCode = $ip_array->countryCode; 
-			$state = $ip_array->regionName;
-			
-			$logger = new Logger();
-			
-			# Revoke Let´s encrypt SSL
-			try {
-				$le = new Analogic\ACME\Lescript($accountDir, $certlocation, $domainRoot, $logger, $countryCode, $state);
-				
-				# uses client's email used during registration
-				//$le->contact = array('mailto:' . $currentuser['email']); // optional
-			
-				$le->initAccount();
-								
-				# start revoke
-				$le->postRevoke($pem2der);
+			while ($row = $sql->fetch()) {
+				$olddata = $row['vh_custom_tx'];
 			}
 			
-			catch (\Exception $e) {
-				$logger->error($e->getMessage());
-				$logger->error($e->getTraceAsString());
-				exit(1);
-			}
-			
-			# Delete Letsencrypt Cert from DB & System
-			
-				$line = "# Made from Sencrypt - " . $sub_module . " - start" . fs_filehandler::NewLine();
-				$line .= fs_filehandler::NewLine();
-                $line .= 'SSLEngine On' . fs_filehandler::NewLine();
-				$line .= "SSLCertificateFile " . $certlocation . $domain . "/cert.pem" . fs_filehandler::NewLine();
-				$line .= "SSLCertificateKeyFile " . $certlocation . $domain . "/private.pem" . fs_filehandler::NewLine();
-				$line .= "SSLCACertificateFile " . $certlocation . $domain . "/chain.pem" . fs_filehandler::NewLine();
-				$line .= "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" . fs_filehandler::NewLine();
-				$line .= "SSLHonorCipherOrder on" . fs_filehandler::NewLine();
-				$line .= "SSLCipherSuite \"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384\"" . fs_filehandler::NewLine();
-				$line .= "# Made from Sencrypt - " . $sub_module . " - end" . fs_filehandler::NewLine();
-
-				$port 			= NULL;
-				$portforward 	= NULL;
-				$new = '';
-
-				$sql = $zdbh->prepare("SELECT * FROM x_vhosts WHERE vh_name_vc = :domain AND vh_deleted_ts IS NULL");
-            	$sql->bindParam(':domain', $domain);
-            	$sql->execute();
+				$data = $olddata. $line;
 				
-            	while ($row = $sql->fetch()) {
-					$olddata = $row['vh_custom_tx'];
-				}
-				
-					$data = $olddata. $line;
-					
+				//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx=:data, vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
+			
+				# NEW CODE
+				if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
+					# For older Sentora support						
 					//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx=:data, vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
-				
-					# NEW CODE
-					if ( ctrl_options::GetSystemOption('dbversion') <= "1.0.3") {
-						# For older Sentora support						
-						//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx=:data, vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
-						
-						$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx= replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port WHERE vh_name_vc = :domain");
-						//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx= replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port, vh_portforward_in=:portforward WHERE vh_name_vc = :domain");
-						$sql->bindParam(':data', $line);
-						$sql->bindParam(':new', $new);
-						$sql->bindParam(':port', $port);
-						$sql->bindParam(':domain', $domain);
-						$sql->bindParam(':portforward', $portforward);
-						$sql->execute();	
-						
-					} else {
-						# For Sentora 2.0
-						$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx= (vh_ssl_tx, :data, :new), vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
-						$sql->bindParam(':data', $data);
-						$sql->bindParam(':new', $new);
-						$sql->bindParam(':port', $port);
-						$sql->bindParam(':domain', $domain);
-						$sql->execute();
-						
-					}
-					# NEW CODE END
 					
+					$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx= replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port WHERE vh_name_vc = :domain");
+					//$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_custom_tx= replace(vh_custom_tx, :data, :new), vh_custom_port_in=:port, vh_portforward_in=:portforward WHERE vh_name_vc = :domain");
+					$sql->bindParam(':data', $line);
+					$sql->bindParam(':new', $new);
+					$sql->bindParam(':port', $port);
+					$sql->bindParam(':domain', $domain);
+					$sql->bindParam(':portforward', $portforward);
+					$sql->execute();	
+					
+				} else {
+					# For Sentora 2.0
+					$sql = $zdbh->prepare("UPDATE x_vhosts SET vh_ssl_tx= (vh_ssl_tx, :data, :new), vh_ssl_port_in=:port WHERE vh_name_vc = :domain");
+					$sql->bindParam(':data', $data);
+					$sql->bindParam(':new', $new);
+					$sql->bindParam(':port', $port);
+					$sql->bindParam(':domain', $domain);
+					$sql->execute();
+					
+				}
+				# NEW CODE END
+				
 
-        			//$sql->bindParam(':data', $data);
-					//$sql->bindParam(':domain', $domain);
-					//$sql->bindParam(':port', $port);
-					//$sql->bindParam(':portforward', $portforward);
-					//$sql->execute();			
+				//$sql->bindParam(':data', $data);
+				//$sql->bindParam(':domain', $domain);
+				//$sql->bindParam(':port', $port);
+				//$sql->bindParam(':portforward', $portforward);
+				//$sql->execute();			
 
-				self::SetWriteApacheConfigTrue();
-				self::$revokecert = true;
-				return true;
-		}
-	
-		static function pem2der($pem) {
-			return base64_decode(implode('',array_slice(
-				array_map('trim',explode("\n",trim($pem))),1,-1
-			)));
-		}
-	
-		static function base64url($data){ # RFC7515 - Appendix C
-			return rtrim(strtr(base64_encode($data),'+/','-_'),'=');
-		}
-	
+			self::SetWriteApacheConfigTrue();
+			self::$revokecert = true;
+			return true;
+	}
+
+	static function pem2der($pem) {
+		return base64_decode(implode('',array_slice(
+			array_map('trim',explode("\n",trim($pem))),1,-1
+		)));
+	}
+
+	static function base64url($data){ # RFC7515 - Appendix C
+		return rtrim(strtr(base64_encode($data),'+/','-_'),'=');
+	}
 	
 # LETS Encrypt code - END
 
@@ -1757,7 +1768,7 @@ static function Show_list_of_domains() {
 	}
 
     static function getDonation() {
-        $donation = '<br />Donate to module developer: <form action="https://www.paypal.com/donate" method="post" target="_blank">
+        $donation = '<form action="https://www.paypal.com/donate" method="post" target="_top">
 <input type="hidden" name="hosted_button_id" value="MCDRPGAZFNEMY" />
 <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" height="25" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
 <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1" />
@@ -1768,70 +1779,53 @@ static function Show_list_of_domains() {
 	
     static function getCopyright() {
 		
-        $copyright = '<font face="ariel" size="2">'.ui_module::GetModuleName().' v2.1.0 &copy; 2016-'.date("Y").' by <a target="_blank" href="#">TGates, Jettaman & Diablo</a> for <a target="_blank" href="http://sentora.org">Sentora Control Panel</a>&nbsp;&#8212;&nbsp;Help support future development of this module and donate today!</font>';
+        $copyright = '<font face="ariel" size="2">'.ui_module::GetModuleName().' v3.0.0 &copy; 2016-'.date("Y").' by <a target="_blank" href="#">TGates, Jettaman & Diablo</a> for <a target="_blank" href="http://sentora.org">Sentora Control Panel</a>&nbsp;&#8212;&nbsp;Help support future development of this module and donate today!</font>';
 		
         return $copyright;
     }
 
-    static function getPortWarning() {
+    //static function getPortWarning() {
 		
-		return '<font face="ariel" size="4">' . ui_language::translate("ZADMIN ALERT: Make sure port 443 is OPEN before adding any SSL certificates!") . '</font>';
-    }
+		//return '<font face="ariel" size="4">' . ui_language::translate("ZADMIN ALERT: Make sure port 443 is OPEN before adding any SSL certificates!") . '</font>';
+    //}
 	
-		# Added to check DNS before Creating SSL Certs
-		static function GetNameservers($domain) {
-			$nameservers	= array();
-			$dns			= @dns_get_record($domain, DNS_NS);
-			
-			# NOT tested or maybe needed - CHeck first
-			/*if(!$dns) {
-				if(sys_versions::ShowOSPlatformVersion() !== 'Windows') {
-					$result = shell_exec('dig NS +trace ' . $domain);
-					$lines	= explode("\n", $result);
-					$dns	= [];
-					
-					foreach($lines AS $line) {
-						preg_match('/^(?P<host>.*)\.\s(?P<ttl>[0-9]+)\s(?P<class>IN)\s(?P<type>NS)\s(?P<target>.*)\. $/Uis', $line, $matches);
-				
-						if(!empty($matches)) {
-							$dns[] = [
-								'type'		=> $matches['type'],
-								'ttl'		=> $matches['ttl'],
-								'class'		=> $matches['class'],
-								'type'		=> $matches['type'],
-								'target'	=> $matches['target']
-							];
-						}
-					}
-				}
-			}*/
-			
-			if(!empty($dns)) {
-				foreach($dns AS $entry) {
-					if($entry['type'] === 'NS') {
-						$nameservers[] = $entry['target'];
-					}
-				}
-			}
-			
-			return $nameservers;
-		}
+	static function checkDNSIsLive ($domain, $ipStatus, $querydata, $server_ip) { 
+		# Check DNS for domain is live and public before continuing
+		 
+		 // Pull IP from sentora
+		 ctrl_options::GetSystemOption('server_ip');
 		
-		static function HasSentoraDNS($domain) {
-			$nameservers	= self::GetNameservers($domain);
+		if(checkdnsrr($domain,"A")) {
 			
-			# @ToDo check DNS
-			return (in_array('ns1.' . $domain, $nameservers) && in_array('ns2.' . $domain, $nameservers));
+			if (($ipStatus == "success") && ($querydata == $server_ip)) {
+				return true;		
+			}
+		} else {
+			return false;
 		}
+	}
+	
 
 	static function getResult() {
 		if (self::$modReqsError)
 		{
-			return ui_sysmessage::shout(ui_language::translate("You need at least PHP 5.3.0 with OpenSSL and curl extension installed. Contact your admin for help. This Module may not work correctly until the issues are fixed."), "zannounceerror");
+			return ui_sysmessage::shout(ui_language::translate("You need at least PHP 5.3.0+ with OpenSSL and curl extension installed. Contact your admin for help. This Module may not work correctly until the issues are fixed."), "zannounceerror");
 		}
-		if (self::$ok)
+		if (self::$portReqsError)
+		{
+			return ui_sysmessage::shout(ui_language::translate("ALERT: Port (443) appears to be CLOSED. Sencrypt will not work until port (443) is OPEN. Contact your Administator."), "zannounceerror");
+		}
+		if (self::$okletsencrypt)
 		{
 			return ui_sysmessage::shout(ui_language::translate("Your FREE Letsencrypt SSL Certificate has been Created. It will be active in about 5 minutes."), "zannounceok");
+		}
+		if (self::$okselfsigned)
+		{
+			return ui_sysmessage::shout(ui_language::translate("Your Self-Signed SSL Certificate has been Created. It will be active in about 5 minutes."), "zannounceok");
+		}
+		if (self::$okthirdparty)
+		{
+			return ui_sysmessage::shout(ui_language::translate("Your Third-Party SSL Certificate has been uploaded. It will be active in about 5 minutes."), "zannounceok");
 		}
 		if (self::$delok)
 		{
@@ -1843,13 +1837,16 @@ static function Show_list_of_domains() {
 		}
 		if (self::$dnsInvalid)
 		{
-			return ui_sysmessage::shout(ui_language::translate("Your DNS for this domain is not public yet. Please retry again later."), "zannounceerror");
+			return ui_sysmessage::shout(ui_language::translate("Your DNS for this domain is not LIVE or POINTING to this server yet. Please check your DNS and retry again later."), "zannounceerror");
 		}
 		if (self::$revokecert) {
             return ui_sysmessage::shout(ui_language::translate("The Requested Certificate has been revoked"), "zannounceok");
         }
 		if (self::$keyadd) {
             return ui_sysmessage::shout(ui_language::translate("Certificate Signing Request was made and sent to the mail you have entered"), "zannounceok");
+        }
+		if (self::$certFailed) {
+            return ui_sysmessage::shout(ui_language::translate("Oops! Something went wrong. Your Lets Encrypt certificate was not created. Check if your website is LIVE."), "zannounceerror");
         }
 		return;
 	}

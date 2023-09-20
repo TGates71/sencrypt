@@ -1,4 +1,122 @@
-<@ Init @>
+<style>
+body {font-family: Arial;}
+
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #ccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+</style>
+
+<style>
+	/* Fix bad behavior of styling */
+	.active {
+		color: inherit;
+	}
+	
+	.actions {
+		width: 200px;
+		min-width: 200px !important;
+		max-width: 300px !important;
+	}
+	
+	.status {
+		width: 250px;
+		min-width: 200px !important;
+		max-width: 300px !important;
+	}
+	
+	div#settings[role="tabpanel"],
+	div#single[role="tabpanel"],
+	div#wildcard[role="tabpanel"] {
+		margin-left: -15px;
+		margin-right: -15px;
+	}
+	
+	.zgrid_wrapper.alerts {
+		margin-left: 15px;
+		margin-right: 15px;
+	}
+	
+	.table thead > tr.first > th,
+	.table tbody > tr.first > th,
+	.table thead > tr.first > td,
+	.table tbody > tr.first > td {
+		border-top: inherit;
+	}
+	
+	.nav-tabs > li:first-child {
+		margin-left: 10px;
+	}
+	
+	.nav-tabs > li:last-child {
+		margin-right: 10px;
+	}
+	
+	.tab-pane {
+		margin-bottom: 0px;
+	}
+
+	div.panel-heading:not(:first-child) {
+		border-top: 2px solid #DDDDDD;
+		border-radius: inherit;
+		margin-top: -1px;
+	}
+	
+	.zmodule_content.panel {
+		padding-bottom: 0px;
+	}
+
+	.buttons td {
+		background-color: inherit !important;
+	}
+	
+	.no-domains {
+		margin-bottom: 25px;
+	}
+	
+	th.icon {
+		width: 30px;
+		text-align: center;
+		padding: 15px 0px 15px 10px !important;
+	}
+	
+	th.icon img {
+		min-width: 24px;
+	}
+</style>
+
 <div class="zmodule_content panel" id="zmodule_header_<@ ModuleName @>">
     <div class="panel-heading">
         <img src="<@ ModuleIcon @>" width="35" height="35" border="0" alt="<@ ModuleName @>">
@@ -12,9 +130,9 @@
     </div>
 
 	<% if Admin %>
-		<div class="alert alert-danger" role="alert">
-			<@ PortWarning @>
-		</div>
+		<!--<div class="alert alert-danger" role="alert">-->
+			<@ CheckPortReq @>
+		<!--</div>-->
 	<% endif %>
 
 	<@ CheckModReq @>
@@ -24,7 +142,7 @@
   	<% if Admin %>
 		<div class="zgrid_wrapper" >
 			<table class="table">
-				<h2><: Active control panel domain certificate :></h2>
+				<h2><: Active Control Panel Certificate :></h2>
 				
 				<tr>
 					<th> Domain </th>
@@ -40,7 +158,7 @@
 							<& Active_Panel_Domain &>
 						</td>
 						<td>
-							<& Active_Panel_Providor &>
+							<& Active_Panel_Provider &>
 						</td>
 						<td>
 							<& Active_Panel_Days &>
@@ -65,7 +183,7 @@
 
 	<div class="zgrid_wrapper" >
 		<table class="table">
-			<h2><: Active domain certificates :></h2>
+			<h2><: Active Domain Certificates :></h2>
 	
 				<tr>
 					<th> Domain </th>
@@ -76,7 +194,6 @@
 				</tr>
 	
 				<% loop List_of_active_domains_ssl %>
-
 					<tr>
 						<td>
 							<& Domain_AC &>
@@ -87,17 +204,17 @@
 						<td>
 							<& Days_AC &>
 						</td>
-						<td>
-							<& Download_AC &>
-						</td> 
+						<!--<td>
+							
+						</td> -->
 						<td>
 							<& Button_AC &>
 						</td>
 						<td>
+							<& Download_AC &>
 							<& Revoke_AC &>
 						</td
 					</tr>
-
 				<% endloop %>
 				
 		</table>
@@ -108,24 +225,16 @@
 	
 	<h2><: Create a new domain SSL cert :></h2>
 	
-	<% if Admin %>
-		<div class="alert alert-danger" role="alert">
-			<@ PortWarning @>
-		</div>
-	<% endif %>
-	
 	<h4><u><: Please select a tab that best suits your needs below to get started. :></u></h4>
 	<p><: &nbsp; :></p>
-	<p>Select <b>Letsencrypt Tab </b>| For a FREE <b>(90-day)</b> SSL Certificate with <b>Auto-Renewal</b>. No worries here. :-) </p>
-	<p> <b>-OR-</b> </p>
-	<p>Select <b> Third-party Tab </b>| For Request/Setup for a purchased ( Godaddy, Bluehost, Verisign ) SSL Certificates.</p>
+
 	
 	<p><: &nbsp; :></p>
 
 	<div class="tab">
-	  <button class="tablinks <@ ShowLetsencryptActive @>" onclick="openCity(event, 'Letsencrypt')"><img src="modules/sencrypt/assets/icon.png">Letsencrypt</button>
-	  <button class="tablinks <@ ShowThird_partyActive @>" onclick="openCity(event, 'Third-party')"><img src="modules/sencrypt/assets/third_party.png">Third-party</button>
-	  <button style="display:block;float:right;" class="tablinks" onclick="openCity(event, 'Settings')"><img src="modules/sencrypt/assets/settings.png">Settings</button>
+		<button class="tablinks <@ ShowLetsencryptActive @>" onclick="openCity(event, 'Letsencrypt')"><img src="modules/sencrypt/assets/icon.png">Lets Encrypt<br>Free with Auto-renew</button>
+		<button class="tablinks <@ ShowThird_partyActive @>" onclick="openCity(event, 'Third-party')"><img src="modules/sencrypt/assets/third_party.png">Third-Party<br>Self-signed or purchased Certificates</button>
+		<!--<button style="display:block;float:right;" class="tablinks" onclick="openCity(event, 'Settings')"><img src="modules/sencrypt/assets/settings.png">Settings</button>-->
 	</div>
 		
 	<div style="display: <@ ShowLetsencryptTab @>;" id="Letsencrypt" class="tabcontent">
@@ -134,21 +243,20 @@
 		<div class="zgrid_wrapper" >
 			<table class="table">
 				<h3><: Let's Encypt your Sentora Control Panel.  - # Zadmin ONLY # :></h3>
-				<h4><: - Use Let's Encrypt to create a SSL for your Sentora Control panel URL for Free. :></h4>
+				<h4><: - Use Lets Encrypt to create a SSL for your Sentora Control panel URL for Free. :></h4>
+				
+				<tr>
+					<th> Domain </th>
+					<th> Actions </th>	
+				</tr>
+				
 				<% loop List_of_Panel_Domains %>
-					
 					<tr>
 						<td>
 							<& Panel_Domain &>
 						</td>
 						<td>
-							<& Panel_Days &>
-						</td> 
-						<td>
 							<& Panel_Button &>
-						</td>
-						<td>
-							
 						</td>
 					</tr>
 				<% endloop %>
@@ -160,21 +268,20 @@
 	<div class="zgrid_wrapper" >
 		<table class="table">
 			<h3><: Let's Encypt your Domains. :></h3>
-			<h4><: - Use Let's Encrypt to create a SSL for your Domain(s) for Free. :></h4>
-			<% loop List_of_domains %>
+			<h4><: - Use Lets Encrypt to create a SSL for your Domain(s) for Free. :></h4>
 			
+			<tr>
+				<th> Domains </th>
+				<th> Actions </th>	
+			</tr>
+			
+			<% loop List_of_domains %>
 				<tr>
 					<td>
-						<& Domain_AC &>
-					</td>
-					<td>
-						<& Days_AC &>
+						<& Vh_Domain &>
 					</td> 
 					<td>
-						<& Button_AC &>
-					</td>
-					<td>
-						
+						<& Vh_Button &>
 					</td>
 				</tr>
 			<% endloop %>

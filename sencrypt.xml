@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <updateserver>
-	<latestversion>210</latestversion>
-	<downloadurl>zppy-repo.mach-hosting.com/repo-dev/sencrypt.zpp</downloadurl>
-	<desc>Sencrypt is a module that adds and manages SSL certificates from Letsencrypt or other Third-party providers to encrypt your domain's connections.</desc>
+	<latestversion>300</latestversion>
+	<downloadurl>http://repo.sentora.org/repo/sencrypt.zpp</downloadurl>
+	<desc>Add, revoke or delete Let's Encrypt FREE! SSL certificates for your domains and sub domains.</desc>
 	<updatedesc></updatedesc>
 	<authorname>TGates</authorname>
 	<authoremail>tgates@sentora.org</authoremail>

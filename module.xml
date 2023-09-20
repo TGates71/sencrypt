@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <module>
-    <name>Sencrypt</name>
-    <version>210</version>
+    <name>Sencrypt SSL</name>
+    <version>300</version>
     <defaultcat>Domain Management</defaultcat>
-    <desc>Sencrypt is a module that adds and manages SSL certificates from Letsencrypt or other Third-party providers to encrypt your domain's connections.</desc>
+    <desc>Sencrypt is a SSL module to Add/Manage SSL certificates for Lets Encrypt or Third-Party SSL Request(s)/Setup for your domains.</desc>
     <authorname>TGates</authorname>
     <authoremail>tgates@sentora.org</authoremail>
     <authorurl>sentora.org</authorurl>
-    <updateurl>zppy-repo.mach-hosting.com/repo-dev</updateurl>
+    <updateurl>http://repo.sentora.org/repo/sencrypt.zpp</updateurl>
 </module>
